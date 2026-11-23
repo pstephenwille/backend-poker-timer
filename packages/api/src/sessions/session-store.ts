@@ -9,6 +9,7 @@ const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 const IDLE_TIMEOUT_MS = 30 * DAY_MS;
 const ABSOLUTE_TIMEOUT_MS = 90 * DAY_MS;
+export const SESSION_ABSOLUTE_LIFETIME_SECONDS = ABSOLUTE_TIMEOUT_MS / 1000;
 /** Bounds writes to one per session per hour; idle expiry is measured in days, so the lag is harmless. */
 const LAST_SEEN_REFRESH_INTERVAL_MS = HOUR_MS;
 

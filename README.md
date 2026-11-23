@@ -67,6 +67,33 @@ Schema changes: edit `packages/api/src/db/schema.ts`, then `pnpm --filter @poker
 
 Integration tests start Postgres in Docker with Testcontainers, so Docker must be running for `pnpm test`.
 
+### Google sign-in
+
+Sign-in goes browser → `/api/auth/login` → Cognito's hosted domain → Google → Cognito → `/api/auth/callback`. Each stage has its own Cognito user pool, created by `sst.config.ts`; one Google OAuth client (Google Cloud console → **APIs & Services → Credentials**, type _Web application_) serves every stage.
+
+Each stage needs three secrets:
+
+| SST secret           | Value                                                                |
+| -------------------- | -------------------------------------------------------------------- |
+| `GoogleClientId`     | the Google OAuth client ID                                           |
+| `GoogleClientSecret` | the Google OAuth client secret                                       |
+| `SigninCookieKey`    | base64 of 32 random bytes (`openssl rand -base64 32`), one per stage |
+
+- **Personal stages:** `pnpm sst secret set <Name> --stage <your-name>` for each, reading the value from stdin (`pnpm sst secret set <Name> --stage <your-name> < file`) so it stays out of shell history.
+- **`dev` and `prod`:** never use `sst secret set`. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `SIGNIN_COOKIE_KEY` as secrets of the matching GitHub environment; the delivery workflow passes them to `sst deploy` as `SST_SECRET_<Name>` variables. A missing one fails the deploy.
+
+After the stage's first deploy, register its Cognito redirect URI with Google. The deploy prints `cognitoHostedDomain`; append `/oauth2/idpresponse` and add the result under the OAuth client's **Authorized redirect URIs**:
+
+```
+https://poker-timer-<stage>-<account-id>.auth.us-east-1.amazoncognito.com/oauth2/idpresponse
+```
+
+Until it is registered, Google answers sign-in with `redirect_uri_mismatch`. The app's own callback (`<url>/api/auth/callback`) is registered with Cognito by `sst.config.ts` and needs no Google entry.
+
+Smoke check: open `<url>/api/auth/login` in a browser, sign in with Google, then `<url>/api/me` returns you. A failed sign-in lands on `<url>/?signinError=<code>&ref=<id>`; search the API function's CloudWatch logs for the `ref` to see why.
+
+To make someone an admin, add them to the stage's user pool `admin` group (Cognito console → the pool → **Groups → admin**) after their first sign-in; it takes effect at their next sign-in.
+
 ### Tear down a personal stage
 
 ```sh

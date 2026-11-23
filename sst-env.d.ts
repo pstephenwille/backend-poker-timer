@@ -10,6 +10,16 @@ declare module "sst" {
       "type": "sst.aws.ApiGatewayV2"
       "url": string
     }
+    "Auth": {
+      "adminGroup": string
+      "callbackUrl": string
+      "clientId": string
+      "clientSecret": string
+      "hostedDomainUrl": string
+      "issuer": string
+      "signOutReturnUrl": string
+      "type": "sst.sst.Linkable"
+    }
     "DatabaseUrl": {
       "type": "sst.sst.Secret"
       "value": string
@@ -18,9 +28,21 @@ declare module "sst" {
       "name": string
       "type": "sst.aws.Bucket"
     }
+    "GoogleClientId": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
+    "GoogleClientSecret": {
+      "type": "sst.sst.Secret"
+      "value": string
+    }
     "Router": {
       "type": "sst.aws.Router"
       "url": string
+    }
+    "SigninCookieKey": {
+      "type": "sst.sst.Secret"
+      "value": string
     }
   }
 }
