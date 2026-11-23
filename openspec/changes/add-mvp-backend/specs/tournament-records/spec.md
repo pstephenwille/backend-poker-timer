@@ -7,11 +7,11 @@ Keeps a durable record of each in-person poker tournament won by a group member:
 ## ADDED Requirements
 
 ### Requirement: Tournament fields
-A tournament SHALL consist of `playedOn` (date), `participantIds`, `winnerId`, `winningHand`, `pot`, `opponentIds`, an optional `note` and an optional photo; the system SHALL set `id`, `recordedById`, `createdAt` and `updatedAt`.
+A tournament SHALL consist of `playedOn` (required, epoch milliseconds), `participantIds`, `winnerId`, `winningHand`, `pot`, `opponentIds`, an optional `note` and an optional photo; the system SHALL set `id`, `recordedById`, `createdAt` and `updatedAt`.
 
 #### Scenario: Minimal valid tournament
-- **WHEN** a member records a tournament with only `participantIds`, `winnerId`, `winningHand` and `pot`
-- **THEN** the system stores it with `playedOn` set to today, `opponentIds` empty, no note and no photo, and returns the server-set fields
+- **WHEN** a member records a tournament with only `playedOn`, `participantIds`, `winnerId`, `winningHand` and `pot`
+- **THEN** the system stores it with `opponentIds` empty, no note and no photo, and returns the server-set fields
 
 ### Requirement: Winning hand categories
 `winningHand` MUST be one of, from lowest to highest: High Card, Pair, Two Pair, Three of a Kind, Straight, Flush, Full House, Four of a Kind, Straight Flush, Royal Flush.
@@ -21,11 +21,23 @@ A tournament SHALL consist of `playedOn` (date), `participantIds`, `winnerId`, `
 - **THEN** the system responds 400 listing the allowed values
 
 ### Requirement: Tournament field validation
-The system SHALL reject a tournament unless: `playedOn` is not in the future; there are at least 2 distinct participants, all group members; the winner is a participant; `pot` is a whole number of dollars ≥ 0; opponents are distinct participants other than the winner; and `note` is at most 500 characters.
+The system SHALL reject a tournament unless: `playedOn` is present and is a non-negative integer of epoch milliseconds no later than the server's current time plus 5 minutes of clock-drift tolerance; there are at least 2 distinct participants, all group members; the winner is a participant; `pot` is a whole number of dollars ≥ 0; opponents are distinct participants other than the winner; and `note` is at most 500 characters.
+
+#### Scenario: Missing date
+- **WHEN** a tournament is submitted without `playedOn`
+- **THEN** the system responds 400 stating `playedOn` is required
 
 #### Scenario: Future date
-- **WHEN** a tournament is submitted with `playedOn` after today
+- **WHEN** a tournament is submitted with `playedOn` more than 5 minutes after the server's current time
 - **THEN** the system responds 400 stating the date cannot be in the future
+
+#### Scenario: Past date
+- **WHEN** a tournament is submitted with `playedOn` months or years in the past
+- **THEN** the system accepts the tournament
+
+#### Scenario: Invalid playedOn
+- **WHEN** `playedOn` is fractional, negative or not a number
+- **THEN** the system responds 400
 
 #### Scenario: Single participant
 - **WHEN** a tournament is submitted with fewer than 2 distinct participants

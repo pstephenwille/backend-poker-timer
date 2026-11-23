@@ -22,11 +22,26 @@ The system SHALL reject a sign-in callback whose state does not match the sign-i
 
 #### Scenario: Callback without the sign-in cookie
 - **WHEN** a callback arrives in a browser that did not start sign-in
-- **THEN** the system creates no session and responds 400
+- **THEN** the system creates no session and redirects to the app root with `signinError=expired`
 
 #### Scenario: Replayed callback
 - **WHEN** a callback URL that already completed sign-in is opened again
-- **THEN** the system creates no new session
+- **THEN** the system creates no new session and redirects to the app root with `signinError=expired`
+
+### Requirement: Sign-in failures are reported to the app
+The system SHALL end every failed sign-in callback by redirecting to the app root with a `signinError` code (`cancelled`, `expired`, `deactivated` or `failed`) and a `ref` request identifier, SHALL create no session and delete the sign-in cookie, SHALL log the detailed failure reason under that `ref`, and SHALL NOT place message text in the redirect.
+
+#### Scenario: User cancels at Google
+- **WHEN** the identity provider returns `error=access_denied` to the callback
+- **THEN** the system redirects to the app root with `signinError=cancelled`
+
+#### Scenario: Unexpected failure
+- **WHEN** the callback fails on state mismatch, code exchange or ID-token verification
+- **THEN** the system redirects to the app root with `signinError=failed` and a `ref`, and the detailed reason is logged under that `ref`
+
+#### Scenario: No message text in the redirect
+- **WHEN** any sign-in callback fails
+- **THEN** the redirect URL carries only the `signinError` code and `ref`, never a human-readable message
 
 ### Requirement: Safe return after sign-in
 The system SHALL return the user after sign-in only to a relative path within the app; any other `returnTo` value SHALL be replaced by the app root.
@@ -120,7 +135,7 @@ The system SHALL let an admin deactivate and reactivate an account; deactivation
 
 #### Scenario: Deactivated user signs in
 - **WHEN** a deactivated user completes Google sign-in
-- **THEN** the system creates no session and shows that the account is deactivated
+- **THEN** the system creates no session and redirects to the app root with `signinError=deactivated`
 
 #### Scenario: Deactivated user's history
 - **WHEN** an account is deactivated

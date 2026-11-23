@@ -9,16 +9,16 @@
 
 ## 2. Contracts package
 
-- [ ] 2.1 Define shared primitives in contracts: ids, `HandCategory` enum (ascending order), error envelope `{ error: { code, message, details? } }`; verify unit tests cover enum ordering
+- [ ] 2.1 Define shared primitives in contracts: ids, `HandCategory` enum (ascending order), error envelope `{ error: { code, message, details? } }`, `SigninErrorCode` enum (`cancelled`, `expired`, `deactivated`, `failed`); verify unit tests cover enum ordering
 - [ ] 2.2 Define user schemas (`Me`, `MemberSummary`, `MemberProfile` with stats, `UpdateMe` with username following Gmail rules — 6–30 `[A-Za-z0-9.]`, no leading/trailing/consecutive periods — or null); verify unit tests for each rule, including `mike.j` vs `mikej` being distinct
-- [ ] 2.3 Define tournament schemas (`CreateTournament`, `UpdateTournament`, `Tournament`, paginated list) including cross-field rules: winner ∈ participants, ≥ 2 distinct participants, opponents distinct ⊂ participants minus winner, whole-dollar `pot` ≥ 0, `note` ≤ 500, `playedOn` not in the future; verify unit tests for every rule in `specs/tournament-records`
+- [ ] 2.3 Define tournament schemas (`CreateTournament`, `UpdateTournament`, `Tournament`, paginated list) including cross-field rules: winner ∈ participants, ≥ 2 distinct participants, opponents distinct ⊂ participants minus winner, whole-dollar `pot` ≥ 0, `note` ≤ 500, `playedOn` required integer epoch millis ≤ now + 5 minutes; verify unit tests for every rule in `specs/tournament-records`, including missing, past, future and invalid `playedOn`
 - [ ] 2.4 Define media schemas (upload grant, confirm, photo `{ status, url? }`) and `LeaderboardEntry`; verify they type-check
 - [ ] 2.5 Add fixtures for users, tournaments and the leaderboard on a separate `./fixtures` export, plus a test that parses every fixture against its schema; verify the test fails when a fixture is deliberately broken
 - [ ] 2.6 Configure the package build (`tsc` to ESM + `.d.ts`), `exports` map and GitHub Packages `publishConfig`; verify `pnpm pack` contains `dist/index.js` and `dist/fixtures.js` and that `index.js` has no fixture data
 
 ## 3. Database
 
-- [ ] 3.1 Write the Drizzle schema for `groups`, `users`, `sessions`, `tournaments`, `tournament_participants`, `media` and the `winning_hand` enum per design.md, with the generated `username_lower` unique column, username `CHECK`, and `pot ≥ 0` check; verify `drizzle-kit generate` produces a migration
+- [ ] 3.1 Write the Drizzle schema for `groups`, `users`, `sessions`, `tournaments`, `tournament_participants`, `media` and the `winning_hand` enum per design.md, with `played_on` as `timestamptz`, the generated `username_lower` unique column, username `CHECK`, and `pot ≥ 0` check; verify `drizzle-kit generate` produces a migration
 - [ ] 3.2 Add the initial migration seeding the single group, and a `db:migrate` script; verify migrating a fresh test container twice is idempotent
 - [ ] 3.3 Create the `pg` pool/Drizzle client reading the connection string from the linked secret, reusing one pool per Lambda container; verify an integration test round-trips a row
 
@@ -27,7 +27,7 @@
 - [ ] 4.1 Add `sst.config.ts` (region `us-east-1`, `prod` protected/retained, domain as a stage parameter) with secrets `DatabaseUrl`, `GoogleClientId`, `GoogleClientSecret`, `SigninCookieKey`; verify `sst diff --stage <personal>` succeeds
 - [ ] 4.2 Define the Cognito user pool, Google identity provider (email, name, picture), hosted domain, `admin` group and confidential app client with callback `https://<stage-host>/api/auth/callback` and sign-out URL; verify after deploy that the hosted flow offers only Google sign-in
 - [ ] 4.3 Define the private media bucket (block public access, CORS POST from the app origin only, lifecycle expiring `uploads/` after 1 day); verify an unsigned GET of an object is denied
-- [ ] 4.4 Define the HTTP API (no authorizer) with the Hono function, the frontend bucket, and the CloudFront router on the stage host routing `/api/*` to the API (no caching, cookies/headers/query forwarded) and everything else to the bucket with SPA fallback; export the frontend bucket name and distribution id; verify on a personal stage that `/api/leaderboard` returns JSON and `/` serves a placeholder `index.html`
+- [ ] 4.4 Define the HTTP API (no authorizer) with the Hono function, the frontend bucket, and the CloudFront router on the stage host routing `/api/*` to the API (no caching, cookies/headers/query forwarded) and everything else to the bucket with SPA fallback; export the frontend bucket name and distribution id; verify on a personal stage that a request to any `/api/...` path is answered by the Hono function (its default 404, not the bucket), that `/` and a deep path such as `/some/page` serve the placeholder `index.html`, and that the response to `/api/...` is not cached by CloudFront
 - [ ] 4.5 Document first-time stage setup (buy domain in Route 53, Neon branch, `sst secret set`, Google OAuth redirect URI, frontend deploy using the exported bucket and distribution) in `README.md`; verify a fresh personal stage can be brought up by following it
 
 ## 5. API foundation
@@ -37,11 +37,11 @@
 
 ## 6. Auth layer
 
-- [ ] 6.1 Implement session storage: create (256-bit random id, store SHA-256 hash, `is_admin`), look up with 30-day idle and 90-day absolute expiry, throttle `last_seen_at` updates to hourly, delete one or all of a user's sessions, daily sweep of expired rows; verify unit/integration tests for each expiry rule using a controllable clock
-- [ ] 6.2 Implement the session middleware (read `__Host-session`, resolve `{ userId, isAdmin }`, 401 otherwise) with an explicit public-route list (`/api/leaderboard`, `/api/auth/login`, `/api/auth/callback`); verify a test that calls every registered route without a session and gets 401 for all but the public list
+- [ ] 6.1 Implement session storage: create (256-bit random id, store SHA-256 hash, `is_admin`), look up with 30-day idle and 90-day absolute expiry, throttle `last_seen_at` updates to hourly, delete one or all of a user's sessions, delete all expired sessions during each successful sign-in; verify unit/integration tests for each expiry rule using a controllable clock, and that a sign-in removes another user's expired session
+- [ ] 6.2 Implement the session middleware (read `__Host-session`, resolve `{ userId, isAdmin }`, 401 otherwise) with an explicit public-route list (`/api/leaderboard`, `/api/auth/login`, `/api/auth/callback`); verify a test that calls every registered route without a session, sending the app's `Origin` and a JSON body on non-safe methods so only the session check applies, and gets exactly 401 for all but the public list
 - [ ] 6.3 Wrap `openid-client` behind an identity-provider port (authorization URL, code exchange + ID-token verification) with an in-memory fake issuing fixed claims; verify unit tests for the fake and a type-check of the Cognito adapter
 - [ ] 6.4 Implement `GET /api/auth/login`: generate state/nonce/PKCE, sanitize `returnTo` to relative paths, set the encrypted `__Secure-signin` cookie (`Lax`, `Path=/api/auth`, 10 min) and redirect with `identity_provider=Google`; verify tests for cookie attributes, the redirect URL and an off-site `returnTo` falling back to `/`
-- [ ] 6.5 Implement `GET /api/auth/callback`: validate and delete the sign-in cookie, check state, exchange code, verify claims, upsert the user into the seeded group, refuse deactivated users, create the session with `is_admin` from `cognito:groups`, set `__Host-session` (`HttpOnly`, `Secure`, `Strict`, no `Domain`) and redirect; verify integration tests for first sign-in, concurrent first sign-ins creating one user, missing/expired/replayed sign-in cookie, state mismatch, deactivated user and admin detection
+- [ ] 6.5 Implement `GET /api/auth/callback`: validate and delete the sign-in cookie, check state, exchange code, verify claims, upsert the user into the seeded group, refuse deactivated users, create the session with `is_admin` from `cognito:groups`, set `__Host-session` (`HttpOnly`, `Secure`, `Strict`, no `Domain`) and redirect; on any failure delete the sign-in cookie, log the reason under the request id and `303`-redirect to `/?signinError=<code>&ref=<requestId>`; verify integration tests for first sign-in, concurrent first sign-ins creating one user, admin detection, and the redirect code for each failure: provider `access_denied` (`cancelled`), missing/expired/replayed sign-in cookie (`expired`), deactivated user (`deactivated`), state mismatch and verification error (`failed`)
 - [ ] 6.6 Implement `POST /api/auth/logout` (delete session, expire cookie, return Cognito logout URL); verify the old cookie is rejected with 401 afterwards
 
 ## 7. Accounts and profiles
@@ -72,8 +72,8 @@
 
 ## 11. CI/CD
 
-- [ ] 11.1 Add the PR gate workflow (pnpm, Node 24, `biome ci`, typecheck, unit + integration tests with Docker); verify it passes on a test PR
-- [ ] 11.2 Add the delivery workflow: OIDC AWS role, migrate + `sst deploy --stage dev` on `main`, then the `prod` environment with required reviewers running migrate + deploy; verify a merge deploys `dev` and waits for approval before `prod`
+- [ ] 11.1 Add the PR gate workflow (pnpm, Node 24, `biome ci`, typecheck, unit + integration tests with Docker) and a `.github/pull_request_template.md` with a checklist item requiring migrations to be backwards compatible (expand/contract); verify it passes on a test PR and that the PR shows the checklist
+- [ ] 11.2 Add the delivery workflow: OIDC AWS role, migrate + `sst deploy --stage dev` on `master`, then the `prod` environment with required reviewers running migrate + deploy; verify a merge deploys `dev` and waits for approval before `prod`
 - [ ] 11.3 Add the contracts publish job that publishes to GitHub Packages only when the package version is new; verify an unchanged version skips publishing and a bumped version publishes
 
 ## 12. End-to-end verification

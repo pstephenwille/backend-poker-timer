@@ -48,7 +48,7 @@ The backend is a confidential OIDC client of Cognito, which federates to Google 
 
 Flow:
 1. `GET /api/auth/login?returnTo=` generates `state`, `nonce` and a PKCE verifier, stores them with the sanitized `returnTo` (relative paths only) in an encrypted, signed sign-in cookie `__Secure-signin` (`HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/api/auth`, 10-minute max-age; it cannot use the `__Host-` prefix because that prefix requires `Path=/`), and redirects to Cognito's authorize endpoint with `identity_provider=Google`.
-2. `GET /api/auth/callback` reads and deletes the sign-in cookie, checks `state`, exchanges the code with the client secret, and verifies the ID token (issuer, audience, expiry, nonce). It upserts the user from `sub`, `email`, `name`, `picture` (`INSERT … ON CONFLICT (cognito_sub) DO UPDATE`), rejects deactivated users, creates a session with `is_admin` from `cognito:groups`, sets the session cookie and redirects to `returnTo`. Cognito tokens are discarded.
+2. `GET /api/auth/callback` reads and deletes the sign-in cookie, checks `state`, exchanges the code with the client secret, and verifies the ID token (issuer, audience, expiry, nonce). It upserts the user from `sub`, `email`, `name`, `picture` (`INSERT … ON CONFLICT (cognito_sub) DO UPDATE`), rejects deactivated users, creates a session with `is_admin` from `cognito:groups`, sets the session cookie and redirects to `returnTo`. Cognito tokens are discarded. Every failure (provider `access_denied`, missing/expired/replayed sign-in cookie, state mismatch, exchange or verification error, deactivated user) deletes the sign-in cookie and `303`-redirects to `/?signinError=<SigninErrorCode>&ref=<requestId>`; the detailed reason is logged under the request id and never placed in the URL, so the React app shows its own message for a known code and phishing text cannot be injected.
 3. `POST /api/auth/logout` deletes the session row, expires the cookie and returns the Cognito `/logout` URL for the browser to visit.
 
 The sign-in cookie must be `Lax`, not `Strict`: the callback is a top-level navigation initiated from Cognito's domain, which the browser treats as cross-site, so a `Strict` cookie would not be sent. A server-only `state` store would avoid the cookie but lose the binding to the initiating browser (login CSRF).
@@ -67,10 +67,11 @@ Drizzle with the `node-postgres` driver over TCP to Neon's pooled endpoint — t
 ### Data model
 - `groups(id, name)` — one row seeded by the initial migration.
 - `users(id uuid, group_id, cognito_sub unique, email, google_name, google_avatar_url, username, username_lower unique, avatar_media_id null, deactivated_at null, created_at)`. `username_lower` is a generated column enforcing case-insensitive uniqueness; periods are kept, so `mike.j` and `mikej` are distinct. Username format follows Gmail's published rules (6–30 letters, digits, periods; no leading, trailing or consecutive periods), validated in the contracts schema and backed by a `CHECK` constraint.
-- `sessions(id_hash bytea primary key, user_id, is_admin, created_at, last_seen_at)` — only the SHA-256 of the 256-bit random session identifier is stored, so a database leak cannot be replayed as sessions. Expired rows are deleted on access and by a daily sweep.
-- `tournaments(id uuid, group_id, played_on date, winner_id, winning_hand, pot integer check ≥ 0, note varchar(500) null, photo_media_id null, recorded_by_id, created_at, updated_at)`.
+- `sessions(id_hash bytea primary key, user_id, is_admin, created_at, last_seen_at)` — only the SHA-256 of the 256-bit random session identifier is stored, so a database leak cannot be replayed as sessions. Expired rows are deleted on access, and every successful sign-in also deletes all expired sessions, so no scheduled job is needed.
+- `tournaments(id uuid, group_id, played_on timestamptz, winner_id, winning_hand, pot integer check ≥ 0, note varchar(500) null, photo_media_id null, recorded_by_id, created_at, updated_at)`.
 - `tournament_participants(tournament_id, user_id, is_opponent bool)`, primary key `(tournament_id, user_id)`; the winner is a participant row with `is_opponent = false`.
 - `media(id uuid, owner_user_id, kind 'tournament_photo'|'avatar', upload_key, display_key null, status 'pending'|'ready', created_at)`.
+- `playedOn` travels as epoch milliseconds and is stored as a UTC instant. The server compares it only to its own clock (5-minute drift tolerance) and never reasons about time zones; clients localize it for display and, for a picked past date, send that day's local noon so viewers a few zones away still see the same date.
 - `winning_hand` is a Postgres enum in ascending order (`high_card` … `royal_flush`), so enum ordering is hand strength.
 
 Cross-field rules (winner ∈ participants, opponents ⊂ participants \ {winner}, recorder ∈ participants) are enforced in the zod schemas and the service layer inside one transaction.
@@ -117,7 +118,7 @@ Biome for lint and format, `tsc --noEmit` per package, Node 24, arm64 Lambdas, E
 
 ### CI/CD (GitHub Actions)
 - **PR gate** (`pull_request`): install, `biome ci`, typecheck, unit + integration tests.
-- **Deliver** (`push` to `main`): run Drizzle migrations against `dev`, `sst deploy --stage dev`; then a `prod` GitHub environment with required reviewers runs migrations against `prod` and `sst deploy --stage prod`. AWS access via OIDC role; the Neon connection string and SST secrets come from environment secrets.
+- **Deliver** (`push` to `master`): run Drizzle migrations against `dev`, `sst deploy --stage dev`; then a `prod` GitHub environment with required reviewers runs migrations against `prod` and `sst deploy --stage prod`. AWS access via OIDC role; the Neon connection string and SST secrets come from environment secrets.
 - **Publish contracts**: when `packages/contracts/package.json`'s version differs from the latest published version, publish to GitHub Packages.
 
 ## Risks / Trade-offs
