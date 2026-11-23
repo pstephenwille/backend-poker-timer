@@ -1,7 +1,7 @@
+import { ErrorEnvelope } from "@pstephenwille/poker-timer-contracts";
 import { Hono } from "hono";
 import { describe, expect, test } from "vitest";
 import { z } from "zod";
-import type { ErrorEnvelope } from "./api-error.ts";
 import { installErrorHandling } from "./error-handling.ts";
 import { validate } from "./validate.ts";
 
@@ -34,7 +34,7 @@ describe("validate", () => {
 
   test("responds 400 naming every failing field", async () => {
     const response = await postJson(JSON.stringify({ name: "", seats: 1.5 }));
-    const { error } = (await response.json()) as ErrorEnvelope;
+    const { error } = ErrorEnvelope.parse(await response.json());
 
     expect(response.status).toBe(400);
     expect(error.code).toBe("validation_failed");

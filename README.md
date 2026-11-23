@@ -52,6 +52,21 @@ aws s3 sync dist/ s3://<frontendBucket>/ --delete
 aws cloudfront create-invalidation --distribution-id <distributionId> --paths "/*"
 ```
 
+### Database
+
+Each stage has its own [Neon](https://neon.tech) branch in the one Neon project (`prod`, `dev`, and one per personal stage). Create the branch in the Neon console, copy its **pooled** connection string, then:
+
+```sh
+pnpm sst secret set DatabaseUrl "<pooled-connection-string>" --stage <stage>
+DATABASE_URL="<pooled-connection-string>" pnpm --filter @poker-timer/api db:migrate
+```
+
+For `dev` (and later `prod`), also store the connection string as the `DATABASE_URL` secret of the matching GitHub environment (**Settings → Environments → dev → Environment secrets**); the delivery workflow migrates with it before deploying.
+
+Schema changes: edit `packages/api/src/db/schema.ts`, then `pnpm --filter @poker-timer/api db:generate` and commit the generated migration. Migrations run before the new code is deployed, so each one must stay compatible with the code already running (expand, then contract in a later release).
+
+Integration tests start Postgres in Docker with Testcontainers, so Docker must be running for `pnpm test`.
+
 ### Tear down a personal stage
 
 ```sh
@@ -104,4 +119,4 @@ When the policy changes, rerun the `put-role-policy` command.
 ## CI/CD
 
 - **PR gate** (`.github/workflows/pr-gate.yml`): Biome, typecheck, unit and integration tests on every pull request.
-- **Deliver** (`.github/workflows/deliver.yml`): every push to `master` deploys the `dev` stage.
+- **Deliver** (`.github/workflows/deliver.yml`): every push to `master` migrates the `dev` database, then deploys the `dev` stage.

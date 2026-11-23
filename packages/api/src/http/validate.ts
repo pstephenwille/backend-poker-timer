@@ -1,7 +1,8 @@
 import { zValidator } from "@hono/zod-validator";
+import type { ErrorDetail } from "@pstephenwille/poker-timer-contracts";
 import type { ValidationTargets } from "hono";
 import type { ZodType } from "zod";
-import { ApiError, type ErrorDetail } from "./api-error.ts";
+import { ApiError } from "./api-error.ts";
 
 interface ZodIssueLike {
   path: PropertyKey[];

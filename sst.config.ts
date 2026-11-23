@@ -24,11 +24,14 @@ export default $config({
     const { spaFallbackUri } = await import("./infra/spa-fallback.ts");
     const settings = stageSettings($app.stage);
 
+    const databaseUrl = new sst.Secret("DatabaseUrl");
+
     const api = new sst.aws.ApiGatewayV2("Api");
     api.route("$default", {
       handler: "packages/api/src/lambda.handler",
       architecture: "arm64",
       runtime: LAMBDA_RUNTIME,
+      link: [databaseUrl],
     });
 
     const frontend = new sst.aws.Bucket("Frontend", { access: "cloudfront" });
