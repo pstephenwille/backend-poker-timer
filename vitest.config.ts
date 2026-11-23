@@ -14,7 +14,9 @@ export default defineConfig({
         test: {
           name: "integration",
           include: ["packages/*/src/**/*.integration.test.ts"],
-          passWithNoTests: true,
+          globalSetup: ["packages/api/src/testing/global-setup.ts"],
+          fileParallelism: false,
+          hookTimeout: 120_000,
         },
       },
     ],

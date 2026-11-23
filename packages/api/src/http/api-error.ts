@@ -1,17 +1,8 @@
+import type {
+  ErrorDetail,
+  ErrorEnvelope,
+} from "@pstephenwille/poker-timer-contracts";
 import type { ContentfulStatusCode } from "hono/utils/http-status";
-
-export interface ErrorDetail {
-  path: string;
-  message: string;
-}
-
-export interface ErrorEnvelope {
-  error: {
-    code: string;
-    message: string;
-    details?: ErrorDetail[];
-  };
-}
 
 export class ApiError extends Error {
   readonly status: ContentfulStatusCode;

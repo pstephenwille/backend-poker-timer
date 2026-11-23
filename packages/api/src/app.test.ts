@@ -1,5 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { app } from "./app.ts";
+import { createApp } from "./app.ts";
+import { createDatabase } from "./db/database.ts";
+
+/** The pool connects lazily, so routes that never query need no running database. */
+const UNUSED_DATABASE_URL = "postgres://unused.invalid/unused";
+
+const app = createApp({ database: createDatabase(UNUSED_DATABASE_URL) });
 
 describe("unknown routes", () => {
   test("respond with a JSON 404 error envelope", async () => {
