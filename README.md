@@ -80,7 +80,7 @@ Each stage needs three secrets:
 | `SigninCookieKey`    | base64 of 32 random bytes (`openssl rand -base64 32`), one per stage |
 
 - **Personal stages:** `pnpm sst secret set <Name> --stage <your-name>` for each, reading the value from stdin (`pnpm sst secret set <Name> --stage <your-name> < file`) so it stays out of shell history.
-- **`dev` and `prod`:** never use `sst secret set`. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `SIGNIN_COOKIE_KEY` as secrets of the matching GitHub environment; the delivery workflow passes them to `sst deploy` as `SST_SECRET_<Name>` variables. A missing one fails the deploy.
+- **`dev` and `prod`:** never use `sst secret set`. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `SIGNIN_COOKIE_KEY` as secrets of the matching GitHub environment; the delivery workflow passes them to `sst deploy` as `SST_SECRET_<Name>` variables. GitHub turns a missing secret into an empty string rather than an error, so the workflow's first step fails the run, naming any secret that is missing or empty, before anything is migrated or deployed.
 
 After the stage's first deploy, register its Cognito redirect URI with Google. The deploy prints `cognitoHostedDomain`; append `/oauth2/idpresponse` and add the result under the OAuth client's **Authorized redirect URIs**:
 

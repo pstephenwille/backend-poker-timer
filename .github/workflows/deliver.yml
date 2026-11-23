@@ -23,6 +23,21 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: pnpm
+      - name: Require deploy secrets
+        run: |
+          missing=()
+          for name in DATABASE_URL GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET SIGNIN_COOKIE_KEY; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error::Missing or empty secrets in the dev environment: ${missing[*]}"
+            exit 1
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          SIGNIN_COOKIE_KEY: ${{ secrets.SIGNIN_COOKIE_KEY }}
       - run: pnpm install --frozen-lockfile
       - uses: aws-actions/configure-aws-credentials@v6
         with:
