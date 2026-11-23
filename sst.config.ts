@@ -27,12 +27,6 @@ export default $config({
     const databaseUrl = new sst.Secret("DatabaseUrl");
 
     const api = new sst.aws.ApiGatewayV2("Api");
-    api.route("$default", {
-      handler: "packages/api/src/lambda.handler",
-      architecture: "arm64",
-      runtime: LAMBDA_RUNTIME,
-      link: [databaseUrl],
-    });
 
     const frontend = new sst.aws.Bucket("Frontend", { access: "cloudfront" });
     new aws.s3.BucketObjectv2("FrontendPlaceholder", {
@@ -52,6 +46,13 @@ export default $config({
     });
     router.route("/api", api.url);
     router.routeBucket("/", frontend);
+
+    api.route("$default", {
+      handler: "packages/api/src/lambda.handler",
+      architecture: "arm64",
+      runtime: LAMBDA_RUNTIME,
+      link: [databaseUrl, router],
+    });
 
     return {
       url: router.url,

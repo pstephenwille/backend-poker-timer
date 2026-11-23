@@ -1,9 +1,21 @@
 import { sql } from "drizzle-orm";
-import { check, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  check,
+  customType,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 const USERNAME_MIN_LENGTH = 6;
 const USERNAME_MAX_LENGTH = 30;
 const USERNAME_PATTERN = "^[A-Za-z0-9]+(\\.[A-Za-z0-9]+)*$";
+
+const bytea = customType<{ data: Buffer }>({
+  dataType: () => "bytea",
+});
 
 export const groups = pgTable("groups", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -38,3 +50,13 @@ export const users = pgTable(
     ),
   ],
 );
+
+export const sessions = pgTable("sessions", {
+  idHash: bytea("id_hash").primaryKey(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id),
+  isAdmin: boolean("is_admin").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
+});

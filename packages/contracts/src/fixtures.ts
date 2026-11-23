@@ -1,4 +1,5 @@
 import type { Leaderboard } from "./leaderboard.ts";
+import type { Me } from "./me.ts";
 
 export const leaderboard: Leaderboard = [
   {
@@ -14,3 +15,9 @@ export const leaderboard: Leaderboard = [
     tournamentsPlayed: 0,
   },
 ];
+
+export const me: Me = {
+  id: "6f1c2a9e-3b7d-4e8a-9c1f-2d5b8e7a4c31",
+  email: "ann@example.com",
+  isAdmin: false,
+};

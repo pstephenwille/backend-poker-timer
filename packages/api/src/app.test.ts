@@ -1,23 +1,20 @@
 import { describe, expect, test } from "vitest";
-import { createApp } from "./app.ts";
 import { createDatabase } from "./db/database.ts";
+import { createTestApp } from "./testing/test-app.ts";
 
-/** The pool connects lazily, so routes that never query need no running database. */
+/** The pool connects lazily, so requests rejected before any query need no running database. */
 const UNUSED_DATABASE_URL = "postgres://unused.invalid/unused";
 
-const app = createApp({ database: createDatabase(UNUSED_DATABASE_URL) });
+const app = createTestApp(createDatabase(UNUSED_DATABASE_URL));
 
 describe("unknown routes", () => {
-  test("respond with a JSON 404 error envelope", async () => {
+  test("are members-only, answering 401 with the error envelope without a session", async () => {
     const response = await app.request("/api/does-not-exist");
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(401);
     expect(response.headers.get("content-type")).toMatch(/application\/json/);
     expect(await response.json()).toEqual({
-      error: {
-        code: "not_found",
-        message: "No route for GET /api/does-not-exist",
-      },
+      error: { code: "unauthenticated", message: "Sign in to continue" },
     });
   });
 });
