@@ -1,12 +1,12 @@
 import { Leaderboard } from "@pstephenwille/poker-timer-contracts";
 import { describe, expect, test } from "vitest";
-import { createApp } from "../app.ts";
 import { HOME_GROUP_ID } from "../db/home-group.ts";
 import { users } from "../db/schema.ts";
+import { createTestApp } from "../testing/test-app.ts";
 import { useTestDatabase } from "../testing/test-database.ts";
 
 const database = useTestDatabase();
-const app = createApp({ database });
+const app = createTestApp(database);
 
 async function readLeaderboard() {
   const response = await app.request("/api/leaderboard");

@@ -41,7 +41,7 @@ The deploy prints:
 Until the frontend is deployed, the bucket holds a placeholder `index.html`. Smoke check:
 
 ```sh
-curl -i <url>/api/anything   # Hono's JSON 404, Cache-Control: no-store
+curl -i <url>/api/anything   # Hono's JSON 401 (members-only by default), Cache-Control: no-store
 curl -i <url>/some/page      # the placeholder index.html (SPA fallback)
 ```
 
