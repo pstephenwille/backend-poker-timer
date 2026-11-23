@@ -35,7 +35,7 @@ Resources: a `Router` (CloudFront) on the custom domain, an `ApiGatewayV2` with 
 *Alternative*: Serverless Framework v4 (as in go-game-be) — YAML, no type-safe resource linking, and a weaker local loop than `sst dev`.
 
 ### Hosting: single origin through CloudFront
-`<domain>` (prod) and `dev.<domain>` (dev) each front one CloudFront distribution: `/api/*` → API Gateway (no caching, all headers, cookies and query strings forwarded), everything else → the frontend bucket with SPA fallback to `index.html`. The domain is to be purchased; Route 53 hosting lets SST create the ACM certificate and DNS records. Personal stages use `<name>.dev.<domain>`. The frontend repository's CI uploads its build to the stage's frontend bucket and invalidates CloudFront; this repo exports the bucket name and distribution id.
+`<domain>` (prod) and `dev.<domain>` (dev) each front one CloudFront distribution: `/api/*` → API Gateway (no caching, all headers, cookies and query strings forwarded), everything else → the frontend bucket with SPA fallback to `index.html`. The domain is to be purchased; Route 53 hosting lets SST create the ACM certificate and DNS records. Personal stages use `<name>.dev.<domain>`. Until the domain is bought, every stage runs on its distribution's default `*.cloudfront.net` host, which already provides HTTPS, host-only `__Host-` cookies and a valid Cognito callback, so nothing waits on the purchase except the move to custom hostnames. The frontend repository's CI uploads its build to the stage's frontend bucket and invalidates CloudFront; this repo exports the bucket name and distribution id.
 *Why same origin*: the standard layout for cookie sessions — host-only `__Host-` cookies with `SameSite=Strict`, no CORS, and the frontend calls plain `/api/...`.
 *Alternative*: `app.` and `api.` subdomains — also same-site, but needs credentialed CORS and two hostnames.
 
@@ -118,8 +118,12 @@ Biome for lint and format, `tsc --noEmit` per package, Node 24, arm64 Lambdas, E
 
 ### CI/CD (GitHub Actions)
 - **PR gate** (`pull_request`): install, `biome ci`, typecheck, unit + integration tests.
-- **Deliver** (`push` to `master`): run Drizzle migrations against `dev`, `sst deploy --stage dev`; then a `prod` GitHub environment with required reviewers runs migrations against `prod` and `sst deploy --stage prod`. AWS access via OIDC role; the Neon connection string and SST secrets come from environment secrets.
+- **Deliver** (`push` to `master`): run Drizzle migrations against `dev`, `sst deploy --stage dev`; then a `prod` GitHub environment with required reviewers runs migrations against `prod` and `sst deploy --stage prod`. AWS access via an OIDC deploy role created by hand once per account (documented in the README, trust limited to this repository), since the pipeline cannot create the role it signs in with; the Neon connection string and SST secrets come from environment secrets.
 - **Publish contracts**: when `packages/contracts/package.json`'s version differs from the latest published version, publish to GitHub Packages.
+
+### Delivery: walking skeleton, then vertical slices
+Connectivity is proven before any layer is built out. A trivial request first runs locally, then through a deployed stage (CloudFront → API Gateway → Lambda), then through the pipeline, then to Neon, then behind a real Google sign-in. Features follow as thin slices (profiles, tournaments, rankings, editing and admin, photos, avatars), each merged, deployed to `dev` by the pipeline and smoke-checked there before the next starts. Tables, contract schemas and infrastructure are added in the slice that first needs them, so each migration is small and every failure points at the latest slice. The custom domain, contracts publishing and `prod` come last.
+*Alternative*: layer by layer (full contracts, full schema, all infrastructure, then features) — nothing runs end to end until the final step, so integration failures surface late and cascade back through every layer.
 
 ## Risks / Trade-offs
 
@@ -130,16 +134,16 @@ Biome for lint and format, `tsc --noEmit` per package, Node 24, arm64 Lambdas, E
 - [Session lookup on every request adds a database round trip] → One indexed primary-key read per request, on a connection the request already needs.
 - [Anyone with a Google account who finds the site can join the group] → Accepted per product decision; admins deactivate abusers.
 - [Public leaderboard exposes names, avatars and winnings] → Accepted per product decision; emails are never included; signed avatar URLs expire.
-- [Domain not yet purchased] → Stages are parameterized by domain; deploys beyond `sst dev` wait on the purchase.
+- [Domain not yet purchased] → Stages are parameterized by an optional domain and fall back to the default CloudFront host, so only the custom-domain and `prod` slice waits on the purchase.
 - [Neon free-tier compute suspends when idle, adding cold-start latency] → Acceptable for this usage; upgrade the plan if it becomes noticeable.
 - [Leaderboard recomputed on every read] → Trivial at tens of users; revisit only with multi-group growth.
 
 ## Migration Plan
 
-Greenfield; no data to migrate. First deploy order per stage: buy the domain and host it in Route 53 → create the Neon branch → set SST secrets → run migrations (creates and seeds the group) → `sst deploy` → add the stage's Cognito domain redirect URI to the Google OAuth client. Rollback: redeploy the previous commit; migrations are backwards compatible, so no schema rollback is needed.
+Greenfield; no data to migrate. First deploy order per stage: create the Neon branch → set SST secrets → run migrations (creates and seeds the group) → `sst deploy` on the default CloudFront host → add the stage's Cognito domain redirect URI to the Google OAuth client. Once the domain is bought and hosted in Route 53, set the stage's domain parameter and redeploy; SST then creates the certificate and DNS records and the Cognito callback URLs follow the new host. Rollback: redeploy the previous commit; migrations are backwards compatible, so no schema rollback is needed.
 
 ## Open Questions
 
 - Testing strategy beyond the baseline above (for example, smoke tests against the deployed `dev` stage after delivery) — deferred by the user; it adds tests but does not change specs or architecture.
 - GitHub owner/scope name for the contracts package — needed at first publish only.
-- The domain name — needed before the first `dev` deploy; everything references it as a stage parameter.
+- The domain name — needed before `prod` (the custom-domain slice); until then stages use the default CloudFront host.
