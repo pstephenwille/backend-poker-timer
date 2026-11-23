@@ -1,13 +1,14 @@
 import { describe, expect, test } from "vitest";
 import type { ZodType } from "zod";
 import * as fixtures from "./fixtures.ts";
-import { Leaderboard, Me } from "./index.ts";
+import { Leaderboard, Logout, Me } from "./index.ts";
 
 type FixtureName = keyof typeof fixtures;
 
 /** Typed by fixture name, so adding a fixture without registering its schema fails to compile. */
 const schemaByFixture: Record<FixtureName, ZodType> = {
   leaderboard: Leaderboard,
+  logout: Logout,
   me: Me,
 };
 

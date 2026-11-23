@@ -33,3 +33,7 @@ jobs:
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
       - run: pnpm sst deploy --stage dev
+        env:
+          SST_SECRET_GoogleClientId: ${{ secrets.GOOGLE_CLIENT_ID }}
+          SST_SECRET_GoogleClientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          SST_SECRET_SigninCookieKey: ${{ secrets.SIGNIN_COOKIE_KEY }}
