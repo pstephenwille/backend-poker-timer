@@ -10,9 +10,9 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 
 ## 2. Deployed skeleton
 
-- [ ] 2.1 Add `sst.config.ts` (region `us-east-1`, `prod` protected/retained, an optional domain stage parameter that falls back to the default CloudFront host, no secrets yet); verify `sst diff --stage <personal>` succeeds
+- [ ] 2.1 Add `sst` pinned to an exact version and `sst.config.ts` (region `us-east-1`, no secrets yet) with one stage-settings function returning `domain` (optional, falling back to the default CloudFront host), `removal` and `protect` — `prod` retained and protected, `dev` retained, personal stages removed; verify unit tests of the stage-settings function for `prod`, `dev` and a personal stage, and that `sst diff --stage <personal>` succeeds
 - [ ] 2.2 Define the HTTP API (no authorizer) with the Hono function, the frontend bucket holding a placeholder `index.html`, and the CloudFront router routing `/api/*` to the API (no caching, cookies/headers/query forwarded) and everything else to the bucket with SPA fallback; export the frontend bucket name and distribution id; verify on a personal stage that a request to any `/api/...` path is answered by the Hono function (its JSON 404, not the bucket), that `/` and a deep path such as `/some/page` serve the placeholder `index.html`, and that the response to `/api/...` is not cached by CloudFront
-- [ ] 2.3 Document bringing up a personal stage (`sst deploy --stage <name>`, the exported bucket and distribution) in `README.md`; verify a fresh personal stage can be brought up by following it
+- [ ] 2.3 Create by hand an AWS Budgets alert at a small monthly amount (e.g. $10) emailing the account owner, and document it and bringing up a personal stage (`sst deploy --stage <name>`, the exported bucket and distribution, `sst remove` to tear it down) in `README.md`; verify the budget exists, a fresh personal stage can be brought up by following the README, and `sst remove` leaves no resources behind
 
 ## 3. Pipeline skeleton
 

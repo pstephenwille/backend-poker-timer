@@ -32,6 +32,8 @@ packages/api/            Hono app, auth layer, Drizzle schema/migrations, Lambda
 
 ### Infrastructure: SST v3 in `us-east-1`
 Resources: a `Router` (CloudFront) on the custom domain, an `ApiGatewayV2` with no authorizer, one Hono `Function`, one image-processor `Function`, a private media `Bucket`, a frontend `Bucket`, and a `CognitoUserPool` with a Google identity provider, an `admin` group, a hosted domain and a **confidential** app client (client secret, authorization-code grant, callback `https://<stage-host>/api/auth/callback`). Secrets per stage via `sst secret`: `DatabaseUrl`, `GoogleClientId`, `GoogleClientSecret`, `SigninCookieKey` (encrypts the sign-in cookie). The Cognito client secret is linked from the pool resource, not stored by hand. Resources are linked to functions so code reads names via `Resource.*` instead of hand-wired env vars.
+
+Stage differences live in one function at the top of `sst.config.ts` that returns a plain settings object (`domain`, `removal`, `protect`) for `prod`, `dev` or a personal stage; resources read that object instead of testing `$app.stage` themselves. `prod` uses `removal: "retain"` and `protect: true`; `dev` retains; personal stages use `removal: "remove"` so `sst remove` leaves nothing behind. The SST version is pinned exactly in `package.json` and upgraded deliberately, because provider updates can change the deployed diff. Each AWS account has an AWS Budgets alert at a small monthly amount that emails the owner, created by hand alongside the OIDC deploy role because it is account-level rather than per stage.
 *Alternative*: Serverless Framework v4 (as in go-game-be) — YAML, no type-safe resource linking, and a weaker local loop than `sst dev`.
 
 ### Hosting: single origin through CloudFront
