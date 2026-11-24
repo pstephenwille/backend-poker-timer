@@ -95,6 +95,10 @@ export const tournament: Tournament = {
   winningHand: "full_house",
   pot: 120,
   note: "Rivered the boat.",
+  photo: {
+    status: "ready",
+    url: "https://poker-timer-dev-mediabucket.s3.us-east-1.amazonaws.com/display/7a1e2c3d-4b5f-4e6a-8c9d-0e1f2a3b4c5d.webp?X-Amz-Expires=3600",
+  },
   recordedById: ANN_ID,
   createdAt: Date.UTC(2026, 5, 14, 2, 30),
   updatedAt: Date.UTC(2026, 5, 14, 2, 30),

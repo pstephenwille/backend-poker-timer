@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { Photo } from "./media.ts";
 
 /** Ordered from weakest to strongest, so a category's index is its hand strength. */
 export const HAND_CATEGORIES = [
@@ -154,6 +155,7 @@ export const Tournament = z.strictObject({
   winningHand: HandCategory,
   pot: z.int().nonnegative(),
   note: z.string().nullable(),
+  photo: Photo.nullable(),
   recordedById: z.uuid(),
   createdAt: z.int().nonnegative(),
   updatedAt: z.int().nonnegative(),
