@@ -7,12 +7,17 @@
     "db:migrate": "node src/db/migrate-cli.ts"
   },
   "dependencies": {
+    "@aws-sdk/client-s3": "3.1164.0",
+    "@aws-sdk/s3-presigned-post": "3.1164.0",
+    "@aws-sdk/s3-request-presigner": "3.1164.0",
     "@hono/zod-validator": "0.9.1",
     "@pstephenwille/poker-timer-contracts": "workspace:*",
     "drizzle-orm": "0.45.4",
     "hono": "4.13.20",
+    "libheif-js": "1.23.5",
     "openid-client": "6.8.9",
     "pg": "8.23.1",
+    "sharp": "0.35.5",
     "sst": "3.19.3",
     "zod": "4.6.7"
   },

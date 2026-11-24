@@ -92,6 +92,9 @@ export const tournaments = pgTable(
     winningHand: winningHand("winning_hand").notNull(),
     pot: integer("pot").notNull(),
     note: varchar("note", { length: MAX_NOTE_LENGTH }),
+    photoMediaId: uuid("photo_media_id").references(() => media.id, {
+      onDelete: "set null",
+    }),
     recordedById: uuid("recorded_by_id")
       .notNull()
       .references(() => users.id),
@@ -114,3 +117,18 @@ export const tournamentParticipants = pgTable(
   },
   (table) => [primaryKey({ columns: [table.tournamentId, table.userId] })],
 );
+
+export const mediaKind = pgEnum("media_kind", ["tournament_photo", "avatar"]);
+export const mediaStatus = pgEnum("media_status", ["pending", "ready"]);
+
+export const media = pgTable("media", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  ownerUserId: uuid("owner_user_id")
+    .notNull()
+    .references(() => users.id),
+  kind: mediaKind("kind").notNull(),
+  uploadKey: text("upload_key").notNull(),
+  displayKey: text("display_key"),
+  status: mediaStatus("status").notNull().default("pending"),
+  createdAt: millisecondTimestamp("created_at").notNull().defaultNow(),
+});

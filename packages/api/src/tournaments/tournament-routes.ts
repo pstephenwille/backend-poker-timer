@@ -10,7 +10,7 @@ import { z } from "zod";
 import { ApiError } from "../http/api-error.ts";
 import { toErrorDetails, validate } from "../http/validate.ts";
 import type { SessionEnv } from "../sessions/require-session.ts";
-import type { SessionPrincipal } from "../sessions/session-store.ts";
+import { requireEditor, requireTournament } from "./tournament-access.ts";
 import {
   decodeCursor,
   encodeCursor,
@@ -42,20 +42,6 @@ function cursorAfter(tournament: Tournament): string {
   });
 }
 
-function requireTournament(
-  tournament: Tournament | null,
-  id: string,
-): Tournament {
-  if (!tournament) {
-    throw new ApiError(
-      404,
-      "tournament_not_found",
-      `No tournament with id ${id}`,
-    );
-  }
-  return tournament;
-}
-
 function detailsOf(tournament: Tournament): TournamentDetails {
   return {
     playedOn: tournament.playedOn,
@@ -68,16 +54,6 @@ function detailsOf(tournament: Tournament): TournamentDetails {
     opponentIds: tournament.opponentIds,
     note: tournament.note,
   };
-}
-
-function requireEditor(tournament: Tournament, session: SessionPrincipal) {
-  if (!session.isAdmin && tournament.recordedById !== session.userId) {
-    throw new ApiError(
-      403,
-      "not_recorder",
-      "Only the member who recorded this tournament or an admin can change it",
-    );
-  }
 }
 
 /** Edits are partial, so the cross-field rules are checked on the tournament as it will be stored. */

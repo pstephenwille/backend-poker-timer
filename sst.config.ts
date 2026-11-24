@@ -9,6 +9,12 @@ const LAMBDA_RUNTIME = "nodejs22.x";
 const GOOGLE_PROVIDER_NAME = "Google";
 const ADMIN_GROUP_NAME = "admin";
 const OIDC_SCOPES = ["openid", "email", "profile"];
+/** Abandoned originals may still carry GPS data, so they never outlive a day. */
+const UPLOAD_RETENTION = "1 day";
+const UPLOADS_PREFIX = "uploads/";
+/** Decoding a 12-megapixel HEIC through WASM needs a full RGBA frame in memory. */
+const PROCESSOR_MEMORY = "1536 MB";
+const PROCESSOR_TIMEOUT = "60 seconds";
 
 export default $config({
   async app(input) {
@@ -111,11 +117,45 @@ export default $config({
       },
     });
 
+    const media = new sst.aws.Bucket("Media", {
+      cors: {
+        allowOrigins: [router.url.apply((url) => new URL(url).origin)],
+        allowMethods: ["POST"],
+        allowHeaders: ["*"],
+      },
+      lifecycle: [
+        {
+          id: "expire-abandoned-uploads",
+          prefix: UPLOADS_PREFIX,
+          expiresIn: UPLOAD_RETENTION,
+        },
+      ],
+    });
+
+    media.notify({
+      notifications: [
+        {
+          name: "ProcessUploads",
+          function: {
+            handler: "packages/api/src/media/processor-lambda.handler",
+            architecture: "arm64",
+            runtime: LAMBDA_RUNTIME,
+            memory: PROCESSOR_MEMORY,
+            timeout: PROCESSOR_TIMEOUT,
+            link: [databaseUrl, media],
+            nodejs: { install: ["sharp", "libheif-js"] },
+          },
+          events: ["s3:ObjectCreated:*"],
+          filterPrefix: UPLOADS_PREFIX,
+        },
+      ],
+    });
+
     api.route("$default", {
       handler: "packages/api/src/lambda.handler",
       architecture: "arm64",
       runtime: LAMBDA_RUNTIME,
-      link: [databaseUrl, router, auth, signinCookieKey],
+      link: [databaseUrl, router, auth, signinCookieKey, media],
     });
 
     return {

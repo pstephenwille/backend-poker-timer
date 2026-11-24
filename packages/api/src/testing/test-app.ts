@@ -2,9 +2,11 @@ import { createApp } from "../app.ts";
 import type { IdentityProvider } from "../auth/identity-provider.ts";
 import { type Clock, systemClock } from "../clock.ts";
 import type { Database } from "../db/database.ts";
+import type { MediaStorage } from "../media/media-storage.ts";
 import { SESSION_COOKIE } from "../sessions/require-session.ts";
 import { createSessionStore } from "../sessions/session-store.ts";
 import { FakeIdentityProvider } from "./fake-identity-provider.ts";
+import { InMemoryMediaStorage } from "./in-memory-media-storage.ts";
 import { insertTestUser } from "./test-users.ts";
 
 export const TEST_APP_ORIGIN = "https://poker-timer.test";
@@ -14,6 +16,7 @@ export const TEST_ADMIN_GROUP = "admin";
 interface TestAppOptions {
   identityProvider?: IdentityProvider;
   clock?: Clock;
+  storage?: MediaStorage;
 }
 
 export function createTestApp(
@@ -21,6 +24,7 @@ export function createTestApp(
   {
     identityProvider = new FakeIdentityProvider(),
     clock = systemClock,
+    storage = new InMemoryMediaStorage(clock),
   }: TestAppOptions = {},
 ) {
   return createApp({
@@ -32,6 +36,7 @@ export function createTestApp(
       signinCookieKey: TEST_SIGNIN_COOKIE_KEY,
       adminGroup: TEST_ADMIN_GROUP,
     },
+    storage,
   });
 }
 

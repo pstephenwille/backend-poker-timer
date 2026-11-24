@@ -11,9 +11,12 @@ import { installErrorHandling } from "./http/error-handling.ts";
 import { noStore } from "./http/no-store.ts";
 import { leaderboardRoutes } from "./leaderboard/leaderboard-routes.ts";
 import { meRoutes } from "./me/me-routes.ts";
+import type { MediaStorage } from "./media/media-storage.ts";
+import { createMediaStore } from "./media/media-store.ts";
 import { memberRoutes } from "./members/member-routes.ts";
 import { requireSession, type SessionEnv } from "./sessions/require-session.ts";
 import { createSessionStore } from "./sessions/session-store.ts";
+import { tournamentPhotoRoutes } from "./tournaments/tournament-photo-routes.ts";
 import { tournamentRoutes } from "./tournaments/tournament-routes.ts";
 import { createTournamentStore } from "./tournaments/tournament-store.ts";
 
@@ -28,6 +31,7 @@ export interface AppDependencies {
   clock: Clock;
   appOrigin: string;
   auth: AuthSettings;
+  storage: MediaStorage;
 }
 
 export function createApp({
@@ -35,10 +39,13 @@ export function createApp({
   clock,
   appOrigin,
   auth,
+  storage,
 }: AppDependencies) {
   const { identityProvider, signinCookieKey, adminGroup } = auth;
   const sessionStore = createSessionStore(database, clock);
   const signinCookies = createSigninCookieSealer(signinCookieKey, clock);
+  const mediaStore = createMediaStore(database, storage);
+  const tournamentStore = createTournamentStore(database, mediaStore);
   const completeSignin = createSigninCallback({
     database,
     identityProvider,
@@ -62,7 +69,11 @@ export function createApp({
     .route("/leaderboard", leaderboardRoutes(database))
     .route("/me", meRoutes(database))
     .route("/members", memberRoutes(database))
-    .route("/tournaments", tournamentRoutes(createTournamentStore(database)))
+    .route("/tournaments", tournamentRoutes(tournamentStore))
+    .route(
+      "/tournaments",
+      tournamentPhotoRoutes({ tournamentStore, mediaStore, storage }),
+    )
     .route("/admin", adminRoutes({ database, sessionStore }));
   return installErrorHandling(new Hono().route("/api", api));
 }

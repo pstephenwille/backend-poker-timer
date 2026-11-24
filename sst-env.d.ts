@@ -36,6 +36,10 @@ declare module "sst" {
       "type": "sst.sst.Secret"
       "value": string
     }
+    "Media": {
+      "name": string
+      "type": "sst.aws.Bucket"
+    }
     "Router": {
       "type": "sst.aws.Router"
       "url": string

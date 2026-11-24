@@ -1,4 +1,5 @@
 import type {
+  Photo,
   Tournament,
   TournamentDetails,
   TournamentParticipant,
@@ -7,6 +8,7 @@ import { and, desc, eq, inArray, type SQL, sql } from "drizzle-orm";
 import type { Database } from "../db/database.ts";
 import { HOME_GROUP_ID } from "../db/home-group.ts";
 import { tournamentParticipants, tournaments, users } from "../db/schema.ts";
+import type { MediaStore } from "../media/media-store.ts";
 import { resolveDisplayName } from "../users/display-name.ts";
 import { byDisplayName } from "../users/user-profile.ts";
 import type { PageCursor } from "./tournament-cursor.ts";
@@ -26,6 +28,7 @@ export interface TournamentPageResult {
 function toTournament(
   row: TournamentRow,
   participants: ParticipantRow[],
+  photo: Photo | null,
 ): Tournament {
   const ordered = [...participants].sort(byDisplayName);
   return {
@@ -37,6 +40,7 @@ function toTournament(
     winningHand: row.winningHand,
     pot: row.pot,
     note: row.note,
+    photo,
     recordedById: row.recordedById,
     createdAt: row.createdAt.getTime(),
     updatedAt: row.updatedAt.getTime(),
@@ -65,7 +69,10 @@ function startsAfter(cursor: PageCursor): SQL {
   return sql`(${tournaments.playedOn}, ${tournaments.createdAt}, ${tournaments.id}) < (${new Date(cursor.playedOn).toISOString()}::timestamptz, ${new Date(cursor.createdAt).toISOString()}::timestamptz, ${cursor.id}::uuid)`;
 }
 
-export function createTournamentStore(database: Database) {
+export function createTournamentStore(
+  database: Database,
+  mediaStore: MediaStore,
+) {
   async function loadParticipants(
     tournamentIds: string[],
   ): Promise<ParticipantRow[]> {
@@ -92,16 +99,50 @@ export function createTournamentStore(database: Database) {
     }));
   }
 
+  async function loadPhotos(
+    rows: TournamentRow[],
+  ): Promise<Map<string, Photo>> {
+    const mediaIds = rows
+      .map((row) => row.photoMediaId)
+      .filter((id): id is string => id !== null);
+    const photos = new Map<string, Photo>();
+    for (const mediaRow of await mediaStore.findMany(mediaIds)) {
+      photos.set(mediaRow.id, await mediaStore.toPhoto(mediaRow));
+    }
+    return photos;
+  }
+
   async function withParticipants(
     rows: TournamentRow[],
   ): Promise<Tournament[]> {
     const participants = await loadParticipants(rows.map((row) => row.id));
+    const photos = await loadPhotos(rows);
     return rows.map((row) =>
       toTournament(
         row,
         participants.filter((p) => p.tournamentId === row.id),
+        row.photoMediaId ? (photos.get(row.photoMediaId) ?? null) : null,
       ),
     );
+  }
+
+  async function photoMediaIdOf(id: string): Promise<string | null> {
+    const [row] = await database
+      .select({ photoMediaId: tournaments.photoMediaId })
+      .from(tournaments)
+      .where(eq(tournaments.id, id));
+    return row?.photoMediaId ?? null;
+  }
+
+  async function setPhoto(id: string, mediaId: string | null): Promise<void> {
+    const previous = await photoMediaIdOf(id);
+    await database
+      .update(tournaments)
+      .set({ photoMediaId: mediaId, updatedAt: sql`now()` })
+      .where(eq(tournaments.id, id));
+    if (previous && previous !== mediaId) {
+      await mediaStore.remove(previous);
+    }
   }
 
   async function findUnknownMembers(userIds: string[]): Promise<string[]> {
@@ -152,9 +193,13 @@ export function createTournamentStore(database: Database) {
     });
   }
 
-  /** Participant rows go with it through the foreign key's ON DELETE CASCADE. */
+  /** Participant rows go with it through ON DELETE CASCADE; the photo's images and row are removed explicitly. */
   async function remove(id: string): Promise<void> {
+    const photoMediaId = await photoMediaIdOf(id);
     await database.delete(tournaments).where(eq(tournaments.id, id));
+    if (photoMediaId) {
+      await mediaStore.remove(photoMediaId);
+    }
   }
 
   async function findById(id: string): Promise<Tournament | null> {
@@ -194,7 +239,15 @@ export function createTournamentStore(database: Database) {
     };
   }
 
-  return { findUnknownMembers, insert, update, remove, findById, listPage };
+  return {
+    findUnknownMembers,
+    insert,
+    update,
+    remove,
+    setPhoto,
+    findById,
+    listPage,
+  };
 }
 
 export type TournamentStore = ReturnType<typeof createTournamentStore>;
