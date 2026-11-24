@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { HandBreakdown, WinRate } from "./tournament.ts";
 
 export const MemberSummary = z.strictObject({
   id: z.uuid(),
@@ -17,5 +18,10 @@ export const MemberProfile = z.strictObject({
   username: z.string().nullable(),
   avatarUrl: z.url().nullable(),
   active: z.boolean(),
+  tournamentsPlayed: z.int().nonnegative(),
+  wins: z.int().nonnegative(),
+  winRate: WinRate,
+  totalWinnings: z.int().nonnegative(),
+  handBreakdown: HandBreakdown,
 });
 export type MemberProfile = z.infer<typeof MemberProfile>;

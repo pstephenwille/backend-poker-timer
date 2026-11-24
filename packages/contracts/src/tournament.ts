@@ -17,6 +17,15 @@ export const HAND_CATEGORIES = [
 export const HandCategory = z.enum(HAND_CATEGORIES);
 export type HandCategory = z.infer<typeof HandCategory>;
 
+/** Wins per hand, strongest hand first, listing only hands the member has won with. */
+export const HandBreakdown = z.array(
+  z.strictObject({ hand: HandCategory, wins: z.int().positive() }),
+);
+export type HandBreakdown = z.infer<typeof HandBreakdown>;
+
+/** A fraction from 0 to 1; null until the member has played. */
+export const WinRate = z.number().min(0).max(1).nullable();
+
 export const MAX_NOTE_LENGTH = 500;
 /** Clients' clocks drift; a tournament recorded just after it ends must not look like a future one. */
 export const PLAYED_ON_DRIFT_TOLERANCE_MS = 5 * 60 * 1000;
