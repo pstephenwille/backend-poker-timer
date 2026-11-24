@@ -1,3 +1,8 @@
+import {
+  USERNAME_MAX_LENGTH,
+  USERNAME_MIN_LENGTH,
+  USERNAME_PATTERN,
+} from "@pstephenwille/poker-timer-contracts";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -8,10 +13,6 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
-
-const USERNAME_MIN_LENGTH = 6;
-const USERNAME_MAX_LENGTH = 30;
-const USERNAME_PATTERN = "^[A-Za-z0-9]+(\\.[A-Za-z0-9]+)*$";
 
 const bytea = customType<{ data: Buffer }>({
   dataType: () => "bytea",

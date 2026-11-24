@@ -115,7 +115,14 @@ describe("completing sign-in", () => {
     });
     expect(await readMe(response)).toEqual({
       status: 200,
-      body: { id: user?.id, email: FIXED_CLAIMS.email, isAdmin: false },
+      body: {
+        id: user?.id,
+        email: FIXED_CLAIMS.email,
+        isAdmin: false,
+        username: null,
+        displayName: FIXED_CLAIMS.name,
+        avatarUrl: FIXED_CLAIMS.picture,
+      },
     });
   });
 

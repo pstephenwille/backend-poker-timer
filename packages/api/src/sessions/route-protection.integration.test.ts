@@ -20,13 +20,21 @@ const PLACEHOLDER_ID = "6f1c2a9e-3b7d-4e8a-9c1f-2d5b8e7a4c31";
 const database = useTestDatabase();
 const app = createTestApp(database);
 
-const registeredRoutes = app.routes
-  .filter((route) => route.method !== MIDDLEWARE_METHOD)
-  .map((route) => ({
-    method: route.method,
-    path: route.path.replace(/:\w+/g, PLACEHOLDER_ID),
-    name: `${route.method} ${route.path}`,
-  }));
+/** Hono lists a route once per handler, so a validated route appears twice; key by name to check each once. */
+const registeredRoutes = [
+  ...new Map(
+    app.routes
+      .filter((route) => route.method !== MIDDLEWARE_METHOD)
+      .map((route) => [
+        `${route.method} ${route.path}`,
+        {
+          method: route.method,
+          path: route.path.replace(/:\w+/g, PLACEHOLDER_ID),
+          name: `${route.method} ${route.path}`,
+        },
+      ]),
+  ).values(),
+];
 
 /** Sends the app's origin and a JSON body, so only the session check can reject the request. */
 function requestWithoutSession(method: string, path: string) {
