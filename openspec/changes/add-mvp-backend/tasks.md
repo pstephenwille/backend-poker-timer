@@ -85,9 +85,9 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 ## 14. Custom domain and production
 
 - [ ] 14.1 Once the domain is bought and hosted in Route 53, set the stage domain parameters (`<domain>` for `prod`, `dev.<domain>` for `dev`, `<name>.dev.<domain>` for personal stages) so SST creates the ACM certificates, DNS records and Cognito callback URLs; finish the first-time stage setup in `README.md` (Route 53, Neon branch, `sst secret set`, Google OAuth redirect URI, frontend deploy); verify `dev` serves on `dev.<domain>` and Google sign-in still works there
-- [ ] 14.2 Add the `prod` GitHub environment with required reviewers to the delivery workflow, running migrations against `prod` and `sst deploy --stage prod`; verify a merge deploys `dev` and waits for approval before `prod`
-- [ ] 14.3 On `prod`, sign in with Google, confirm no token is readable from page scripts and the session cookie has the required attributes, record a tournament with a photo, sign out and read the leaderboard anonymously; verify the photo is served via a signed URL without EXIF and the winner appears ranked correctly
-- [ ] 14.4 Run `openspec validate add-mvp-backend --strict`, the full test suite and Biome; verify all pass
+- [x] 14.2 Add the `prod` GitHub environment with required reviewers to the delivery workflow, running migrations against `prod` and `sst deploy --stage prod`; verify a merge deploys `dev` and waits for approval before `prod`
+- [ ] 14.3 On `prod`, sign in with Google, confirm no token is readable from page scripts and the session cookie has the required attributes, record a tournament with a photo, sign out and read the leaderboard anonymously; verify the photo is served via a signed URL without EXIF and the winner appears ranked correctly (deferred until the frontend is built, so it runs through the real UI)
+- [x] 14.4 Run `openspec validate add-mvp-backend --strict`, the full test suite and Biome; verify all pass
 
 ## Workflow follow-up
 
