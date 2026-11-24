@@ -1,0 +1,1 @@
+ALTER TABLE "tournament_participants" RENAME COLUMN "is_opponent" TO "is_final_hand_opponent";

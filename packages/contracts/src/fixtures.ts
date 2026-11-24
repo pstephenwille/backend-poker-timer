@@ -43,6 +43,7 @@ export const leaderboard: Leaderboard = [
     winRate: 0.6,
     totalWinnings: 360,
     latestWinningHand: "full_house",
+    lastWonAt: Date.UTC(2026, 5, 13, 19, 0),
   },
   {
     userId: BOB_ID,
@@ -54,6 +55,7 @@ export const leaderboard: Leaderboard = [
     winRate: 0.4,
     totalWinnings: 180,
     latestWinningHand: "flush",
+    lastWonAt: Date.UTC(2026, 5, 6, 19, 0),
   },
   {
     userId: CAL_ID,
@@ -65,6 +67,7 @@ export const leaderboard: Leaderboard = [
     winRate: null,
     totalWinnings: 0,
     latestWinningHand: null,
+    lastWonAt: null,
   },
 ];
 
@@ -91,7 +94,7 @@ export const tournament: Tournament = {
     { id: CAL_ID, displayName: "cal" },
   ],
   winnerId: ANN_ID,
-  opponentIds: [BOB_ID],
+  finalHandOpponentIds: [BOB_ID],
   winningHand: "full_house",
   pot: 120,
   note: "Rivered the boat.",

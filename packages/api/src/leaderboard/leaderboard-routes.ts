@@ -20,8 +20,14 @@ function toEntry(
   avatarUrl: string | null,
 ): LeaderboardEntry {
   const { id, displayName } = toPublicProfile(member.profile, avatarUrl);
-  const { wins, tournamentsPlayed, winRate, totalWinnings, latestWinningHand } =
-    summarizeParticipations(member.participations);
+  const {
+    wins,
+    tournamentsPlayed,
+    winRate,
+    totalWinnings,
+    latestWinningHand,
+    lastWonAt,
+  } = summarizeParticipations(member.participations);
   return {
     userId: id,
     displayName,
@@ -32,6 +38,7 @@ function toEntry(
     winRate,
     totalWinnings,
     latestWinningHand,
+    lastWonAt,
   };
 }
 

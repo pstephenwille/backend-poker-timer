@@ -22,6 +22,7 @@ async function loadParticipations(
     .select({
       profile: profileColumns,
       tournament: {
+        id: tournaments.id,
         winnerId: tournaments.winnerId,
         pot: tournaments.pot,
         winningHand: tournaments.winningHand,
@@ -46,6 +47,7 @@ async function loadParticipations(
     byMember.set(profile.id, member);
     if (tournament) {
       member.participations.push({
+        tournamentId: tournament.id,
         won: tournament.winnerId === profile.id,
         pot: tournament.pot,
         winningHand: tournament.winningHand,

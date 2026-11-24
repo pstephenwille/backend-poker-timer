@@ -11,6 +11,8 @@ export const LeaderboardEntry = z.strictObject({
   winRate: WinRate,
   totalWinnings: z.int().nonnegative(),
   latestWinningHand: HandCategory.nullable(),
+  /** The `playedOn` of the member's latest win; null until they have won. */
+  lastWonAt: z.int().nonnegative().nullable(),
 });
 export type LeaderboardEntry = z.infer<typeof LeaderboardEntry>;
 

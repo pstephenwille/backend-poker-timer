@@ -9,6 +9,7 @@ function played(
   overrides: Partial<Participation> = {},
 ): Participation {
   return {
+    tournamentId: `t${day}`,
     won: false,
     pot: 50,
     winningHand: "pair",
@@ -33,6 +34,7 @@ describe("summarizeParticipations", () => {
       winRate: 0.25,
       totalWinnings: 120,
       latestWinningHand: "flush",
+      lastWonAt: START + DAY_MS,
       handBreakdown: [{ hand: "flush", wins: 1 }],
     });
   });
@@ -44,6 +46,7 @@ describe("summarizeParticipations", () => {
       winRate: null,
       totalWinnings: 0,
       latestWinningHand: null,
+      lastWonAt: null,
       handBreakdown: [],
     });
   });
@@ -51,7 +54,11 @@ describe("summarizeParticipations", () => {
   test("a member who played but never won has a win rate of 0", () => {
     const stats = summarizeParticipations([played(0), played(1)]);
 
-    expect(stats).toMatchObject({ winRate: 0, latestWinningHand: null });
+    expect(stats).toMatchObject({
+      winRate: 0,
+      latestWinningHand: null,
+      lastWonAt: null,
+    });
   });
 
   test("winnings count only pots the member won", () => {
@@ -75,6 +82,16 @@ describe("summarizeParticipations", () => {
     ]);
 
     expect(stats.latestWinningHand).toBe("straight");
+  });
+
+  test("lastWonAt is when the most recently played win was played", () => {
+    const stats = summarizeParticipations([
+      played(5, { won: true }),
+      played(1, { won: true, createdAt: START + 9 * DAY_MS }),
+      played(7),
+    ]);
+
+    expect(stats.lastWonAt).toBe(START + 5 * DAY_MS);
   });
 
   test("the hand breakdown counts wins per hand, strongest hand first", () => {

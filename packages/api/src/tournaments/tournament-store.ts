@@ -17,7 +17,7 @@ type TournamentRow = typeof tournaments.$inferSelect;
 
 interface ParticipantRow extends TournamentParticipant {
   tournamentId: string;
-  isOpponent: boolean;
+  isFinalHandOpponent: boolean;
 }
 
 export interface TournamentPageResult {
@@ -36,7 +36,9 @@ function toTournament(
     playedOn: row.playedOn.getTime(),
     participants: ordered.map(({ id, displayName }) => ({ id, displayName })),
     winnerId: row.winnerId,
-    opponentIds: ordered.filter((p) => p.isOpponent).map((p) => p.id),
+    finalHandOpponentIds: ordered
+      .filter((p) => p.isFinalHandOpponent)
+      .map((p) => p.id),
     winningHand: row.winningHand,
     pot: row.pot,
     note: row.note,
@@ -61,7 +63,7 @@ function participantRows(tournamentId: string, details: TournamentDetails) {
   return details.participantIds.map((userId) => ({
     tournamentId,
     userId,
-    isOpponent: details.opponentIds.includes(userId),
+    isFinalHandOpponent: details.finalHandOpponentIds.includes(userId),
   }));
 }
 
@@ -82,7 +84,7 @@ export function createTournamentStore(
     const rows = await database
       .select({
         tournamentId: tournamentParticipants.tournamentId,
-        isOpponent: tournamentParticipants.isOpponent,
+        isFinalHandOpponent: tournamentParticipants.isFinalHandOpponent,
         id: users.id,
         username: users.username,
         googleName: users.googleName,
@@ -93,7 +95,7 @@ export function createTournamentStore(
       .where(inArray(tournamentParticipants.tournamentId, tournamentIds));
     return rows.map((row) => ({
       tournamentId: row.tournamentId,
-      isOpponent: row.isOpponent,
+      isFinalHandOpponent: row.isFinalHandOpponent,
       id: row.id,
       displayName: resolveDisplayName(row),
     }));
@@ -177,7 +179,7 @@ export function createTournamentStore(
     });
   }
 
-  /** Replaces the participant rows wholesale, so removed players and changed opponent flags never linger. */
+  /** Replaces the participant rows wholesale, so removed players and changed Final Hand Opponent flags never linger. */
   async function update(id: string, details: TournamentDetails): Promise<void> {
     await database.transaction(async (transaction) => {
       await transaction

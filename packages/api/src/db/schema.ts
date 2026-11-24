@@ -117,7 +117,7 @@ export const tournamentParticipants = pgTable(
     userId: uuid("user_id")
       .notNull()
       .references(() => users.id),
-    isOpponent: boolean("is_opponent").notNull(),
+    isFinalHandOpponent: boolean("is_final_hand_opponent").notNull(),
   },
   (table) => [primaryKey({ columns: [table.tournamentId, table.userId] })],
 );

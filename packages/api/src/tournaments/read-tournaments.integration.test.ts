@@ -47,8 +47,8 @@ async function insertTournament(playedOn: number, createdAt = playedOn) {
     throw new Error("Inserting a test tournament returned no row");
   }
   await database.insert(tournamentParticipants).values([
-    { tournamentId: row.id, userId: annId, isOpponent: false },
-    { tournamentId: row.id, userId: bobId, isOpponent: true },
+    { tournamentId: row.id, userId: annId, isFinalHandOpponent: false },
+    { tournamentId: row.id, userId: bobId, isFinalHandOpponent: true },
   ]);
   return row.id;
 }
@@ -79,7 +79,7 @@ describe("GET /api/tournaments/{id}", () => {
         { id: bobId, displayName: "Bob Jones" },
       ],
       winnerId: annId,
-      opponentIds: [bobId],
+      finalHandOpponentIds: [bobId],
     });
   });
 

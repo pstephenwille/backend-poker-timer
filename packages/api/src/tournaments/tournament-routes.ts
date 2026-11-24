@@ -51,7 +51,7 @@ function detailsOf(tournament: Tournament): TournamentDetails {
     winnerId: tournament.winnerId,
     winningHand: tournament.winningHand,
     pot: tournament.pot,
-    opponentIds: tournament.opponentIds,
+    finalHandOpponentIds: tournament.finalHandOpponentIds,
     note: tournament.note,
   };
 }

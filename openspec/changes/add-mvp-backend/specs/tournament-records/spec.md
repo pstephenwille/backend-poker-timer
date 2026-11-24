@@ -7,11 +7,11 @@ Keeps a durable record of each in-person poker tournament won by a group member:
 ## ADDED Requirements
 
 ### Requirement: Tournament fields
-A tournament SHALL consist of `playedOn` (required, epoch milliseconds), `participantIds`, `winnerId`, `winningHand`, `pot`, `opponentIds`, an optional `note` and an optional photo; the system SHALL set `id`, `recordedById`, `createdAt` and `updatedAt`.
+A tournament SHALL consist of `playedOn` (required, epoch milliseconds), `participantIds`, `winnerId`, `winningHand`, `pot`, `finalHandOpponentIds`, an optional `note` and an optional photo; the system SHALL set `id`, `recordedById`, `createdAt` and `updatedAt`.
 
 #### Scenario: Minimal valid tournament
 - **WHEN** a member records a tournament with only `playedOn`, `participantIds`, `winnerId`, `winningHand` and `pot`
-- **THEN** the system stores it with `opponentIds` empty, no note and no photo, and returns the server-set fields
+- **THEN** the system stores it with `finalHandOpponentIds` empty, no note and no photo, and returns the server-set fields
 
 ### Requirement: Winning hand categories
 `winningHand` MUST be one of, from lowest to highest: High Card, Pair, Two Pair, Three of a Kind, Straight, Flush, Full House, Four of a Kind, Straight Flush, Royal Flush.
@@ -21,7 +21,7 @@ A tournament SHALL consist of `playedOn` (required, epoch milliseconds), `partic
 - **THEN** the system responds 400 listing the allowed values
 
 ### Requirement: Tournament field validation
-The system SHALL reject a tournament unless: `playedOn` is present and is a non-negative integer of epoch milliseconds no later than the server's current time plus 5 minutes of clock-drift tolerance; there are at least 2 distinct participants, all group members; the winner is a participant; `pot` is a whole number of dollars ≥ 0; opponents are distinct participants other than the winner; and `note` is at most 500 characters.
+The system SHALL reject a tournament unless: `playedOn` is present and is a non-negative integer of epoch milliseconds no later than the server's current time plus 5 minutes of clock-drift tolerance; there are at least 2 distinct participants, all group members; the winner is a participant; `pot` is a whole number of dollars ≥ 0; Final Hand Opponents are distinct participants other than the winner; and `note` is at most 500 characters.
 
 #### Scenario: Missing date
 - **WHEN** a tournament is submitted without `playedOn`
@@ -51,12 +51,12 @@ The system SHALL reject a tournament unless: `playedOn` is present and is a non-
 - **WHEN** `pot` is `120.50` or `-5`
 - **THEN** the system responds 400 stating the pot must be a whole number of dollars of at least 0
 
-#### Scenario: Winner listed as opponent
-- **WHEN** `opponentIds` contains the winner, a duplicate, or someone not in `participantIds`
+#### Scenario: Winner listed as a Final Hand Opponent
+- **WHEN** `finalHandOpponentIds` contains the winner, a duplicate, or someone not in `participantIds`
 - **THEN** the system responds 400
 
-#### Scenario: All other participants knocked out in the final round
-- **WHEN** `opponentIds` lists every participant except the winner
+#### Scenario: All other participants knocked out in the Final Hand
+- **WHEN** `finalHandOpponentIds` lists every participant except the winner
 - **THEN** the system accepts the tournament
 
 #### Scenario: Unknown participant
@@ -93,7 +93,7 @@ The system SHALL allow only the tournament's recorder or an admin to edit or del
 - **THEN** it and its photo are removed and no longer counted anywhere
 
 ### Requirement: Reading tournaments
-The system SHALL let any member read a single tournament and list tournaments newest `playedOn` first, paginated, with participants and opponents shown by display name.
+The system SHALL let any member read a single tournament and list tournaments newest `playedOn` first, paginated, with participants and Final Hand Opponents shown by display name.
 
 #### Scenario: Listing tournaments
 - **WHEN** a member lists tournaments
@@ -104,7 +104,7 @@ The system SHALL let any member read a single tournament and list tournaments ne
 - **THEN** the system responds 404
 
 ### Requirement: Guests are not recorded
-The system SHALL store only group members as participants, winners and opponents, and SHALL hold no data about players without accounts.
+The system SHALL store only group members as participants, winners and Final Hand Opponents, and SHALL hold no data about players without accounts.
 
 #### Scenario: Guest-won tournament
 - **WHEN** a tournament is won by someone without an account
