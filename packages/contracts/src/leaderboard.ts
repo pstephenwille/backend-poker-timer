@@ -2,6 +2,8 @@ import { z } from "zod";
 
 export const LeaderboardEntry = z.strictObject({
   userId: z.uuid(),
+  displayName: z.string(),
+  avatarUrl: z.url().nullable(),
   rank: z.int().positive(),
   wins: z.int().nonnegative(),
   tournamentsPlayed: z.int().nonnegative(),

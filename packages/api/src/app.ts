@@ -10,6 +10,7 @@ import { installErrorHandling } from "./http/error-handling.ts";
 import { noStore } from "./http/no-store.ts";
 import { leaderboardRoutes } from "./leaderboard/leaderboard-routes.ts";
 import { meRoutes } from "./me/me-routes.ts";
+import { memberRoutes } from "./members/member-routes.ts";
 import { requireSession, type SessionEnv } from "./sessions/require-session.ts";
 import { createSessionStore } from "./sessions/session-store.ts";
 
@@ -56,6 +57,7 @@ export function createApp({
       }),
     )
     .route("/leaderboard", leaderboardRoutes(database))
-    .route("/me", meRoutes(database));
+    .route("/me", meRoutes(database))
+    .route("/members", memberRoutes(database));
   return installErrorHandling(new Hono().route("/api", api));
 }

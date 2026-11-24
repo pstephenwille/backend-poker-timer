@@ -44,8 +44,8 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 
 ## 7. Profiles and members
 
-- [ ] 7.1 Implement the display-name resolver (username → Google name → email prefix); verify unit tests for all three fallbacks
-- [ ] 7.2 Add `UpdateMe` to contracts (username following Gmail rules — 6–30 `[A-Za-z0-9.]`, no leading/trailing/consecutive periods — or null) and implement `PATCH /api/me` (set/clear username, 409 on case-insensitive conflict); verify unit tests for each format rule, including `mike.j` vs `mikej` being distinct, and integration tests for each username scenario in `specs/user-profiles`
+- [x] 7.1 Implement the display-name resolver (username → Google name → email prefix); verify unit tests for all three fallbacks
+- [x] 7.2 Add `UpdateMe` to contracts (username following Gmail rules — 6–30 `[A-Za-z0-9.]`, no leading/trailing/consecutive periods — or null) and implement `PATCH /api/me` (set/clear username, 409 on case-insensitive conflict); verify unit tests for each format rule, including `mike.j` vs `mikej` being distinct, and integration tests for each username scenario in `specs/user-profiles`
 - [ ] 7.3 Add `MemberSummary` and a `MemberProfile` without stats to contracts, with user fixtures, and implement `GET /api/members` (all members incl. deactivated, with active flag) and `GET /api/members/{id}`; verify integration tests that no email appears and, on `dev`, that your username change shows on the leaderboard
 
 ## 8. Record and read tournaments
