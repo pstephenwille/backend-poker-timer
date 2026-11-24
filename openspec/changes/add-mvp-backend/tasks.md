@@ -75,11 +75,11 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 
 ## 12. Avatars
 
-- [ ] 12.1 Implement the avatar upload grant (self), confirm and `DELETE /api/me/avatar` on the slice 11 media pipeline, and show uploaded avatars (signed URLs) or the Google avatar in `Me`, members and the leaderboard; verify integration tests for authorization, replacement and removal reverting to the Google avatar, and on `dev` that an uploaded avatar appears on the anonymous leaderboard
+- [x] 12.1 Implement the avatar upload grant (self), confirm and `DELETE /api/me/avatar` on the slice 11 media pipeline, and show uploaded avatars (signed URLs) or the Google avatar in `Me`, members and the leaderboard; verify integration tests for authorization, replacement and removal reverting to the Google avatar, and on `dev` that an uploaded avatar appears on the anonymous leaderboard
 
 ## 13. Contracts publishing
 
-- [ ] 13.1 Configure the contracts package build (`tsc` to ESM + `.d.ts`), `exports` map and GitHub Packages `publishConfig`; verify `pnpm pack` contains `dist/index.js` and `dist/fixtures.js` and that `index.js` has no fixture data
+- [x] 13.1 Configure the contracts package build (`tsc` to ESM + `.d.ts`), `exports` map and GitHub Packages `publishConfig`; verify `pnpm pack` contains `dist/index.js` and `dist/fixtures.js` and that `index.js` has no fixture data
 - [ ] 13.2 Add the contracts publish job that publishes to GitHub Packages only when the package version is new; verify an unchanged version skips publishing and a bumped version publishes
 
 ## 14. Custom domain and production

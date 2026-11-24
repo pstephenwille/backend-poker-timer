@@ -143,7 +143,21 @@ CI deploys with short-lived credentials from GitHub's OIDC provider; no AWS keys
 
 When the policy changes, rerun the `put-role-policy` command.
 
+## Contracts package
+
+`packages/contracts` holds the zod schemas for every request and response, plus sample fixtures on a separate `./fixtures` entry point. Inside this workspace the API imports its TypeScript source directly; the published package (`@pstephenwille/poker-timer-contracts` on GitHub Packages) ships the `tsc` build in `dist/` instead, through `publishConfig.exports`.
+
+To release a new version, bump `version` in `packages/contracts/package.json` following semantic versioning (major for any removed, renamed or tightened field) and merge. The **Publish contracts** workflow publishes only when that exact version is not already on the registry, after rerunning the contracts and fixture tests; it can also be run by hand from the Actions tab.
+
+To consume it from another repository, point the scope at GitHub Packages and authenticate with a token that has `read:packages` (in GitHub Actions, the workflow's `GITHUB_TOKEN`, after granting that repository read access under the package's **Manage Actions access**):
+
+```
+@pstephenwille:registry=https://npm.pkg.github.com
+//npm.pkg.github.com/:_authToken=${NODE_AUTH_TOKEN}
+```
+
 ## CI/CD
 
 - **PR gate** (`.github/workflows/pr-gate.yml`): Biome, typecheck, unit and integration tests on every pull request.
 - **Deliver** (`.github/workflows/deliver.yml`): every push to `master` migrates the `dev` database, then deploys the `dev` stage.
+- **Publish contracts** (`.github/workflows/publish-contracts.yml`): on a push to `master` that touches `packages/contracts`, publishes the package if its version is new.

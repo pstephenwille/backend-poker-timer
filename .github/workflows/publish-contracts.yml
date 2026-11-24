@@ -1,0 +1,64 @@
+name: Publish contracts
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "packages/contracts/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: publish-contracts
+  cancel-in-progress: false
+
+env:
+  PACKAGE_DIR: packages/contracts
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+          registry-url: https://npm.pkg.github.com
+          scope: "@pstephenwille"
+      - run: pnpm install --frozen-lockfile
+      - name: Check whether this version is already published
+        id: version
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          name=$(node -p "require('./$PACKAGE_DIR/package.json').name")
+          version=$(node -p "require('./$PACKAGE_DIR/package.json').version")
+          if npm view "$name@$version" version > "$RUNNER_TEMP/view.out" 2> "$RUNNER_TEMP/view.err"; then
+            if [[ -s "$RUNNER_TEMP/view.out" ]]; then
+              echo "::notice::$name@$version is already published; skipping"
+              echo "publish=false" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          elif ! grep -q "E404" "$RUNNER_TEMP/view.err"; then
+            echo "::error::Could not check the registry for $name@$version"
+            cat "$RUNNER_TEMP/view.err"
+            exit 1
+          fi
+          echo "::notice::Publishing $name@$version"
+          echo "publish=true" >> "$GITHUB_OUTPUT"
+      - name: Test contracts and fixtures
+        if: steps.version.outputs.publish == 'true'
+        run: pnpm vitest run --project unit "$PACKAGE_DIR"
+      - name: Build
+        if: steps.version.outputs.publish == 'true'
+        run: pnpm --filter @pstephenwille/poker-timer-contracts build
+      - name: Publish to GitHub Packages
+        if: steps.version.outputs.publish == 'true'
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm --filter @pstephenwille/poker-timer-contracts publish --no-git-checks

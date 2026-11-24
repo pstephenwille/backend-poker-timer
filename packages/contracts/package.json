@@ -1,10 +1,35 @@
 {
   "name": "@pstephenwille/poker-timer-contracts",
   "version": "0.1.0",
+  "description": "Request and response schemas for the poker-timer API, with sample fixtures",
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pstephenwille/backend-poker-timer.git",
+    "directory": "packages/contracts"
+  },
   "exports": {
     ".": "./src/index.ts",
     "./fixtures": "./src/fixtures.ts"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "./fixtures": {
+        "types": "./dist/fixtures.d.ts",
+        "default": "./dist/fixtures.js"
+      }
+    }
   },
   "dependencies": {
     "zod": "4.6.7"
