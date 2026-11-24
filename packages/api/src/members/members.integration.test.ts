@@ -8,6 +8,8 @@ import { createTestApp, signInTestUser } from "../testing/test-app.ts";
 import { useTestDatabase } from "../testing/test-database.ts";
 import { insertTestUser } from "../testing/test-users.ts";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const database = useTestDatabase();
 const app = createTestApp(database);
 
@@ -65,6 +67,59 @@ describe("GET /api/members/{id}", () => {
       username: "Bob.Bluff",
       avatarUrl: null,
       active: true,
+      tournamentsPlayed: 0,
+      wins: 0,
+      winRate: null,
+      totalWinnings: 0,
+      handBreakdown: [],
+    });
+  });
+
+  test("shows stats from recorded tournaments", async () => {
+    const { user: ann, headers } = await signInTestUser(database, "ann");
+    const bob = await insertTestUser(database, "bob");
+    const results: { winnerId: string; winningHand: string; pot: number }[] = [
+      { winnerId: ann.id, winningHand: "flush", pot: 120 },
+      { winnerId: bob.id, winningHand: "pair", pot: 40 },
+      { winnerId: bob.id, winningHand: "straight", pot: 60 },
+      { winnerId: bob.id, winningHand: "pair", pot: 80 },
+    ];
+    for (const [daysAgo, result] of results.entries()) {
+      const recorded = await app.request("/api/tournaments", {
+        method: "POST",
+        headers: { ...headers, "content-type": "application/json" },
+        body: JSON.stringify({
+          playedOn: Date.now() - (daysAgo + 1) * DAY_MS,
+          participantIds: [ann.id, bob.id],
+          ...result,
+        }),
+      });
+      expect(recorded.status).toBe(201);
+    }
+
+    const annProfile = MemberProfile.parse(
+      await (await app.request(`/api/members/${ann.id}`, { headers })).json(),
+    );
+    const bobProfile = MemberProfile.parse(
+      await (await app.request(`/api/members/${bob.id}`, { headers })).json(),
+    );
+
+    expect(annProfile).toMatchObject({
+      tournamentsPlayed: 4,
+      wins: 1,
+      winRate: 0.25,
+      totalWinnings: 120,
+      handBreakdown: [{ hand: "flush", wins: 1 }],
+    });
+    expect(bobProfile).toMatchObject({
+      tournamentsPlayed: 4,
+      wins: 3,
+      winRate: 0.75,
+      totalWinnings: 180,
+      handBreakdown: [
+        { hand: "straight", wins: 1 },
+        { hand: "pair", wins: 2 },
+      ],
     });
   });
 

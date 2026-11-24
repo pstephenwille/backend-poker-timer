@@ -1,36 +1,52 @@
-import type { Leaderboard } from "@pstephenwille/poker-timer-contracts";
-import { eq } from "drizzle-orm";
+import type {
+  Leaderboard,
+  LeaderboardEntry,
+} from "@pstephenwille/poker-timer-contracts";
 import { Hono } from "hono";
 import type { Database } from "../db/database.ts";
-import { HOME_GROUP_ID } from "../db/home-group.ts";
-import { users } from "../db/schema.ts";
+import { summarizeParticipations, winsOf } from "../stats/member-stats.ts";
 import {
-  byDisplayName,
-  profileColumns,
-  toPublicProfile,
-} from "../users/user-profile.ts";
+  loadAllMemberParticipations,
+  type MemberParticipations,
+} from "../stats/participation-store.ts";
+import { toPublicProfile } from "../users/user-profile.ts";
+import { rankLeaderboard } from "./rank-leaderboard.ts";
 
-/** With no tournaments recorded yet, every member has zero wins and so shares the only rank. */
-const SHARED_RANK_WITHOUT_WINS = 1;
+function toEntry(member: MemberParticipations, rank: number): LeaderboardEntry {
+  const { id, displayName, avatarUrl } = toPublicProfile(member.profile);
+  const { wins, tournamentsPlayed, winRate, totalWinnings, latestWinningHand } =
+    summarizeParticipations(member.participations);
+  return {
+    userId: id,
+    displayName,
+    avatarUrl,
+    rank,
+    wins,
+    tournamentsPlayed,
+    winRate,
+    totalWinnings,
+    latestWinningHand,
+  };
+}
 
+/** Recomputed on every read: tens of members make one query and an in-memory sort trivially cheap. */
 export function leaderboardRoutes(database: Database) {
   return new Hono().get("/", async (c) => {
-    const rows = await database
-      .select(profileColumns)
-      .from(users)
-      .where(eq(users.groupId, HOME_GROUP_ID));
-
-    const leaderboard: Leaderboard = rows
-      .map(toPublicProfile)
-      .sort(byDisplayName)
-      .map(({ id, displayName, avatarUrl }) => ({
-        userId: id,
-        displayName,
-        avatarUrl,
-        rank: SHARED_RANK_WITHOUT_WINS,
-        wins: 0,
-        tournamentsPlayed: 0,
-      }));
+    const members = await loadAllMemberParticipations(database);
+    const memberById = new Map(
+      members.map((member) => [member.profile.id, member]),
+    );
+    const ranked = rankLeaderboard(
+      members.map((member) => ({
+        userId: member.profile.id,
+        displayName: toPublicProfile(member.profile).displayName,
+        wins: winsOf(member.participations),
+      })),
+    );
+    const leaderboard: Leaderboard = ranked.flatMap(({ userId, rank }) => {
+      const member = memberById.get(userId);
+      return member ? [toEntry(member, rank)] : [];
+    });
     return c.json(leaderboard);
   });
 }

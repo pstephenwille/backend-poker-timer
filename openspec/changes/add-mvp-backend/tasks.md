@@ -53,13 +53,13 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 - [x] 8.1 Add the `HandCategory` enum (ascending order) and tournament schemas (`CreateTournament`, `UpdateTournament`, `Tournament`, paginated list) with fixtures to contracts, including cross-field rules: winner ∈ participants, ≥ 2 distinct participants, opponents distinct ⊂ participants minus winner, whole-dollar `pot` ≥ 0, `note` ≤ 500, `playedOn` required integer epoch millis ≤ now + 5 minutes; verify unit tests for enum ordering and every rule in `specs/tournament-records`, including missing, past, future and invalid `playedOn`
 - [x] 8.2 Add the `winning_hand` enum, `tournaments` (with `played_on` as `timestamptz` and the `pot ≥ 0` check) and `tournament_participants` tables in a new migration; verify `drizzle-kit generate` produces it and it applies on top of the slice 4 migration
 - [x] 8.3 Implement `POST /api/tournaments`: schema validation, all participants must be existing group members (400 naming unknown ids), recorder ∈ participants (403), transactional insert of tournament and participant rows; verify integration tests for every validation scenario in `specs/tournament-records`
-- [ ] 8.4 Implement `GET /api/tournaments/{id}` and cursor-paginated `GET /api/tournaments` ordered by `played_on` desc, `created_at` desc, with display names; verify integration tests for ordering, cursor continuation and 404, and on `dev` record a tournament with `curl` (session cookie and `Origin`) and read it back
+- [x] 8.4 Implement `GET /api/tournaments/{id}` and cursor-paginated `GET /api/tournaments` ordered by `played_on` desc, `created_at` desc, with display names; verify integration tests for ordering, cursor continuation and 404, and on `dev` record a tournament with `curl` (session cookie and `Origin`) and read it back
 
 ## 9. Rankings and stats
 
-- [ ] 9.1 Implement the pure `rankLeaderboard` function (wins desc, newest-first hand sequence comparison, competition ranks, display-name order within ties, zero-win members sharing last rank); verify unit tests for every scenario in `specs/leaderboard`, including same-date recency by `created_at`
+- [x] 9.1 Implement the pure `rankLeaderboard` function (wins desc, newest-first hand sequence comparison, competition ranks, display-name order within ties, zero-win members sharing last rank); verify unit tests for every scenario in `specs/leaderboard`, including same-date recency by `created_at`
 - [ ] 9.2 Complete `LeaderboardEntry` and wire `GET /api/leaderboard` to load all members and wins in one query and rank them with `rankLeaderboard` (incl. deactivated members, no emails); verify integration tests for ranking and equality of anonymous and signed-in responses, and on `dev` that the slice 8 winner is ranked first
-- [ ] 9.3 Add derived stats to `MemberProfile` and `GET /api/members/{id}` (played, wins, win rate or null, winnings, hand breakdown); verify integration tests including the zero-tournament case
+- [x] 9.3 Add derived stats to `MemberProfile` and `GET /api/members/{id}` (played, wins, win rate or null, winnings, hand breakdown); verify integration tests including the zero-tournament case
 
 ## 10. Editing, deleting and admin
 

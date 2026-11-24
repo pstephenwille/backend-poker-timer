@@ -2,7 +2,7 @@ import type {
   MemberProfile,
   Members,
 } from "@pstephenwille/poker-timer-contracts";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Hono } from "hono";
 import { z } from "zod";
 import type { Database } from "../db/database.ts";
@@ -11,6 +11,8 @@ import { users } from "../db/schema.ts";
 import { ApiError } from "../http/api-error.ts";
 import { validate } from "../http/validate.ts";
 import type { SessionEnv } from "../sessions/require-session.ts";
+import { summarizeParticipations } from "../stats/member-stats.ts";
+import { loadMemberParticipations } from "../stats/participation-store.ts";
 import {
   byDisplayName,
   profileColumns,
@@ -31,16 +33,20 @@ export function memberRoutes(database: Database) {
     })
     .get("/:id", validate("param", MemberIdParam), async (c) => {
       const { id } = c.req.valid("param");
-      const [row] = await database
-        .select(profileColumns)
-        .from(users)
-        .where(and(eq(users.id, id), eq(users.groupId, HOME_GROUP_ID)));
-      if (!row) {
+      const member = await loadMemberParticipations(database, id);
+      if (!member) {
         throw new ApiError(404, "member_not_found", `No member with id ${id}`);
       }
+      const { tournamentsPlayed, wins, winRate, totalWinnings, handBreakdown } =
+        summarizeParticipations(member.participations);
       const profile: MemberProfile = {
-        ...toPublicProfile(row),
-        username: row.username,
+        ...toPublicProfile(member.profile),
+        username: member.profile.username,
+        tournamentsPlayed,
+        wins,
+        winRate,
+        totalWinnings,
+        handBreakdown,
       };
       return c.json(profile);
     });
