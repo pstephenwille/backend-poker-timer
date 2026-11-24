@@ -1,10 +1,12 @@
+import { HAND_CATEGORIES } from "@pstephenwille/poker-timer-contracts";
 import { eq, sql } from "drizzle-orm";
 import { describe, expect, inject, test } from "vitest";
 import { useTestDatabase } from "../testing/test-database.ts";
+import { insertTestUser } from "../testing/test-users.ts";
 import { createDatabase } from "./database.ts";
 import { HOME_GROUP_ID } from "./home-group.ts";
 import { runMigrations } from "./migrations.ts";
-import { groups, users } from "./schema.ts";
+import { groups, tournaments, users } from "./schema.ts";
 
 const database = useTestDatabase();
 
@@ -89,5 +91,30 @@ describe("users table", () => {
     await expect(
       insertUser({ cognitoSub: "google_1", username: null }),
     ).resolves.toHaveLength(1);
+  });
+});
+
+describe("tournaments tables", () => {
+  test("order winning hands by strength", async () => {
+    const result = await database.execute<{ hands: string[] }>(
+      sql`select enum_range(null::winning_hand)::text[] as hands`,
+    );
+
+    expect(result.rows[0]?.hands).toEqual([...HAND_CATEGORIES]);
+  });
+
+  test("reject a negative pot", async () => {
+    const winner = await insertTestUser(database, "ann");
+
+    await expect(
+      database.insert(tournaments).values({
+        groupId: HOME_GROUP_ID,
+        playedOn: new Date(),
+        winnerId: winner.id,
+        winningHand: "flush",
+        pot: -1,
+        recordedById: winner.id,
+      }),
+    ).rejects.toThrow();
   });
 });

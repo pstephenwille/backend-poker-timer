@@ -4,4 +4,5 @@ export * from "./logout.ts";
 export * from "./me.ts";
 export * from "./members.ts";
 export * from "./signin-error-code.ts";
+export * from "./tournament.ts";
 export * from "./username.ts";

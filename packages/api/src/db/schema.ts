@@ -1,4 +1,6 @@
 import {
+  HAND_CATEGORIES,
+  MAX_NOTE_LENGTH,
   USERNAME_MAX_LENGTH,
   USERNAME_MIN_LENGTH,
   USERNAME_PATTERN,
@@ -8,10 +10,14 @@ import {
   boolean,
   check,
   customType,
+  integer,
+  pgEnum,
   pgTable,
+  primaryKey,
   text,
   timestamp,
   uuid,
+  varchar,
 } from "drizzle-orm/pg-core";
 
 const bytea = customType<{ data: Buffer }>({
@@ -61,3 +67,50 @@ export const sessions = pgTable("sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull(),
 });
+
+/** Declared weakest to strongest, so Postgres orders the enum by hand strength. */
+export const winningHand = pgEnum("winning_hand", HAND_CATEGORIES);
+
+/**
+ * Millisecond precision matches the epoch milliseconds the API exchanges, so a
+ * pagination cursor built from these values compares exactly with the stored row.
+ */
+const millisecondTimestamp = (name: string) =>
+  timestamp(name, { withTimezone: true, precision: 3 });
+
+export const tournaments = pgTable(
+  "tournaments",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => groups.id),
+    playedOn: millisecondTimestamp("played_on").notNull(),
+    winnerId: uuid("winner_id")
+      .notNull()
+      .references(() => users.id),
+    winningHand: winningHand("winning_hand").notNull(),
+    pot: integer("pot").notNull(),
+    note: varchar("note", { length: MAX_NOTE_LENGTH }),
+    recordedById: uuid("recorded_by_id")
+      .notNull()
+      .references(() => users.id),
+    createdAt: millisecondTimestamp("created_at").notNull().defaultNow(),
+    updatedAt: millisecondTimestamp("updated_at").notNull().defaultNow(),
+  },
+  (table) => [check("tournaments_pot_non_negative", sql`${table.pot} >= 0`)],
+);
+
+export const tournamentParticipants = pgTable(
+  "tournament_participants",
+  {
+    tournamentId: uuid("tournament_id")
+      .notNull()
+      .references(() => tournaments.id, { onDelete: "cascade" }),
+    userId: uuid("user_id")
+      .notNull()
+      .references(() => users.id),
+    isOpponent: boolean("is_opponent").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.tournamentId, table.userId] })],
+);

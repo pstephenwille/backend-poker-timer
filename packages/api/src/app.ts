@@ -13,6 +13,8 @@ import { meRoutes } from "./me/me-routes.ts";
 import { memberRoutes } from "./members/member-routes.ts";
 import { requireSession, type SessionEnv } from "./sessions/require-session.ts";
 import { createSessionStore } from "./sessions/session-store.ts";
+import { tournamentRoutes } from "./tournaments/tournament-routes.ts";
+import { createTournamentStore } from "./tournaments/tournament-store.ts";
 
 export interface AuthSettings {
   identityProvider: IdentityProvider;
@@ -58,6 +60,7 @@ export function createApp({
     )
     .route("/leaderboard", leaderboardRoutes(database))
     .route("/me", meRoutes(database))
-    .route("/members", memberRoutes(database));
+    .route("/members", memberRoutes(database))
+    .route("/tournaments", tournamentRoutes(createTournamentStore(database)));
   return installErrorHandling(new Hono().route("/api", api));
 }
