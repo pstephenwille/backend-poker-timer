@@ -1,13 +1,16 @@
 import {
   CreateTournament,
   type Tournament,
+  TournamentDetails,
   type TournamentPage,
+  UpdateTournament,
 } from "@pstephenwille/poker-timer-contracts";
 import { Hono } from "hono";
 import { z } from "zod";
 import { ApiError } from "../http/api-error.ts";
-import { validate } from "../http/validate.ts";
+import { toErrorDetails, validate } from "../http/validate.ts";
 import type { SessionEnv } from "../sessions/require-session.ts";
+import type { SessionPrincipal } from "../sessions/session-store.ts";
 import {
   decodeCursor,
   encodeCursor,
@@ -53,7 +56,77 @@ function requireTournament(
   return tournament;
 }
 
+function detailsOf(tournament: Tournament): TournamentDetails {
+  return {
+    playedOn: tournament.playedOn,
+    participantIds: tournament.participants.map(
+      (participant) => participant.id,
+    ),
+    winnerId: tournament.winnerId,
+    winningHand: tournament.winningHand,
+    pot: tournament.pot,
+    opponentIds: tournament.opponentIds,
+    note: tournament.note,
+  };
+}
+
+function requireEditor(tournament: Tournament, session: SessionPrincipal) {
+  if (!session.isAdmin && tournament.recordedById !== session.userId) {
+    throw new ApiError(
+      403,
+      "not_recorder",
+      "Only the member who recorded this tournament or an admin can change it",
+    );
+  }
+}
+
+/** Edits are partial, so the cross-field rules are checked on the tournament as it will be stored. */
+function mergeChanges(
+  stored: Tournament,
+  changes: UpdateTournament,
+): TournamentDetails {
+  const merged = TournamentDetails.safeParse({
+    ...detailsOf(stored),
+    ...changes,
+  });
+  if (!merged.success) {
+    throw new ApiError(
+      400,
+      "validation_failed",
+      "Request validation failed",
+      toErrorDetails(merged.error.issues),
+    );
+  }
+  if (!merged.data.participantIds.includes(stored.recordedById)) {
+    throw new ApiError(
+      400,
+      "recorder_must_remain_participant",
+      "The member who recorded this tournament must stay a participant",
+    );
+  }
+  return merged.data;
+}
+
 export function tournamentRoutes(store: TournamentStore) {
+  async function requireMembers(participantIds: string[]) {
+    const unknownIds = await store.findUnknownMembers(participantIds);
+    if (unknownIds.length > 0) {
+      throw new ApiError(
+        400,
+        "unknown_participants",
+        "Every participant must be a group member",
+        unknownIds.map((id) => ({
+          path: "participantIds",
+          message: `${id} is not a group member`,
+        })),
+      );
+    }
+  }
+
+  async function findTournament(id: string): Promise<Tournament> {
+    return requireTournament(await store.findById(id), id);
+  }
+
   return new Hono<SessionEnv>()
     .post("/", validate("json", CreateTournament), async (c) => {
       const { userId } = c.get("session");
@@ -65,20 +138,9 @@ export function tournamentRoutes(store: TournamentStore) {
           "You can only record a tournament you played in",
         );
       }
-      const unknownIds = await store.findUnknownMembers(details.participantIds);
-      if (unknownIds.length > 0) {
-        throw new ApiError(
-          400,
-          "unknown_participants",
-          "Every participant must be a group member",
-          unknownIds.map((id) => ({
-            path: "participantIds",
-            message: `${id} is not a group member`,
-          })),
-        );
-      }
+      await requireMembers(details.participantIds);
       const id = await store.insert(details, userId);
-      return c.json(requireTournament(await store.findById(id), id), 201);
+      return c.json(await findTournament(id), 201);
     })
     .get("/", validate("query", ListQuery), async (c) => {
       const cursor = parseCursor(c.req.valid("query").cursor);
@@ -92,6 +154,26 @@ export function tournamentRoutes(store: TournamentStore) {
     })
     .get("/:id", validate("param", TournamentIdParam), async (c) => {
       const { id } = c.req.valid("param");
-      return c.json(requireTournament(await store.findById(id), id));
+      return c.json(await findTournament(id));
+    })
+    .patch(
+      "/:id",
+      validate("param", TournamentIdParam),
+      validate("json", UpdateTournament),
+      async (c) => {
+        const { id } = c.req.valid("param");
+        const stored = await findTournament(id);
+        requireEditor(stored, c.get("session"));
+        const details = mergeChanges(stored, c.req.valid("json"));
+        await requireMembers(details.participantIds);
+        await store.update(id, details);
+        return c.json(await findTournament(id));
+      },
+    )
+    .delete("/:id", validate("param", TournamentIdParam), async (c) => {
+      const { id } = c.req.valid("param");
+      requireEditor(await findTournament(id), c.get("session"));
+      await store.remove(id);
+      return c.body(null, 204);
     });
 }

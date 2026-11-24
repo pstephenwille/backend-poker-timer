@@ -58,12 +58,12 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 ## 9. Rankings and stats
 
 - [x] 9.1 Implement the pure `rankLeaderboard` function (wins desc, newest-first hand sequence comparison, competition ranks, display-name order within ties, zero-win members sharing last rank); verify unit tests for every scenario in `specs/leaderboard`, including same-date recency by `created_at`
-- [ ] 9.2 Complete `LeaderboardEntry` and wire `GET /api/leaderboard` to load all members and wins in one query and rank them with `rankLeaderboard` (incl. deactivated members, no emails); verify integration tests for ranking and equality of anonymous and signed-in responses, and on `dev` that the slice 8 winner is ranked first
+- [x] 9.2 Complete `LeaderboardEntry` and wire `GET /api/leaderboard` to load all members and wins in one query and rank them with `rankLeaderboard` (incl. deactivated members, no emails); verify integration tests for ranking and equality of anonymous and signed-in responses, and on `dev` that the slice 8 winner is ranked first
 - [x] 9.3 Add derived stats to `MemberProfile` and `GET /api/members/{id}` (played, wins, win rate or null, winnings, hand breakdown); verify integration tests including the zero-tournament case
 
 ## 10. Editing, deleting and admin
 
-- [ ] 10.1 Implement `PATCH /api/tournaments/{id}` (recorder or admin, recorder must remain a participant, `updated_at` bumped) and `DELETE /api/tournaments/{id}` (removes participants and any attached media); verify integration tests for 403 by non-recorder, admin success and stats no longer counting a deleted tournament
+- [x] 10.1 Implement `PATCH /api/tournaments/{id}` (recorder or admin, recorder must remain a participant, `updated_at` bumped) and `DELETE /api/tournaments/{id}` (removes participants and any attached media); verify integration tests for 403 by non-recorder, admin success and stats no longer counting a deleted tournament
 - [ ] 10.2 Implement admin `POST /api/admin/users/{id}/deactivate` (sets `deactivated_at`, deletes all sessions) and `/reactivate`; verify integration tests for non-admin 403, the deactivated user's next request returning 401 and reactivation allowing sign-in again, and on `dev` that a deactivated test account gets `signinError=deactivated`
 
 ## 11. Tournament photos

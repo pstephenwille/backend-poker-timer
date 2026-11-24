@@ -9,7 +9,7 @@ interface ZodIssueLike {
   message: string;
 }
 
-function toErrorDetails(issues: ZodIssueLike[]): ErrorDetail[] {
+export function toErrorDetails(issues: ZodIssueLike[]): ErrorDetail[] {
   return issues.map((issue) => ({
     path: issue.path.map(String).join("."),
     message: issue.message,
