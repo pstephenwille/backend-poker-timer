@@ -60,12 +60,14 @@ jobs:
           exit 1
         env:
           STAGE: ${{ inputs.stage }}
+          SST_SECRET_DatabaseUrl: ${{ secrets.DATABASE_URL }}
           SST_SECRET_GoogleClientId: ${{ secrets.GOOGLE_CLIENT_ID }}
           SST_SECRET_GoogleClientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           SST_SECRET_SigninCookieKey: ${{ secrets.SIGNIN_COOKIE_KEY }}
       - name: Deploy
         run: pnpm sst deploy --stage ${{ inputs.stage }}
         env:
+          SST_SECRET_DatabaseUrl: ${{ secrets.DATABASE_URL }}
           SST_SECRET_GoogleClientId: ${{ secrets.GOOGLE_CLIENT_ID }}
           SST_SECRET_GoogleClientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           SST_SECRET_SigninCookieKey: ${{ secrets.SIGNIN_COOKIE_KEY }}

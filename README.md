@@ -54,14 +54,16 @@ aws cloudfront create-invalidation --distribution-id <distributionId> --paths "/
 
 ### Database
 
-Each stage has its own [Neon](https://neon.tech) branch in the one Neon project (`prod`, `dev`, and one per personal stage). Create the branch in the Neon console, copy its **pooled** connection string, then:
+Each stage has its own [Neon](https://neon.tech) branch in the one Neon project (`production`, `dev`, and one per personal stage). Create the branch in the Neon console and copy its **pooled** connection string.
 
-```sh
-pnpm sst secret set DatabaseUrl "<pooled-connection-string>" --stage <stage>
-DATABASE_URL="<pooled-connection-string>" pnpm --filter @poker-timer/api db:migrate
-```
+- **Personal stages:**
 
-For `dev` (and later `prod`), also store the connection string as the `DATABASE_URL` secret of the matching GitHub environment (**Settings → Environments → dev → Environment secrets**); the delivery workflow migrates with it before deploying.
+  ```sh
+  pnpm sst secret set DatabaseUrl "<pooled-connection-string>" --stage <stage>
+  DATABASE_URL="<pooled-connection-string>" pnpm --filter @poker-timer/api db:migrate
+  ```
+
+- **`dev` and `prod`:** store the connection string only as the `DATABASE_URL` secret of the matching GitHub environment (**Settings → Environments → <stage> → Environment secrets**). The delivery workflow migrates with it, then passes it to `sst deploy` as `SST_SECRET_DatabaseUrl`.
 
 Schema changes: edit `packages/api/src/db/schema.ts`, then `pnpm --filter @poker-timer/api db:generate` and commit the generated migration. Migrations run before the new code is deployed, so each one must stay compatible with the code already running (expand, then contract in a later release).
 
