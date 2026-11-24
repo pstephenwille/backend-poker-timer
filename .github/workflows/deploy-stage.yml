@@ -1,0 +1,71 @@
+name: Deploy stage
+
+on:
+  workflow_call:
+    inputs:
+      stage:
+        description: The SST stage, which is also the GitHub environment holding its secrets
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.stage }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - name: Require deploy secrets
+        run: |
+          missing=()
+          for name in DATABASE_URL GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET SIGNIN_COOKIE_KEY; do
+            [[ -n "${!name}" ]] || missing+=("$name")
+          done
+          if (( ${#missing[@]} > 0 )); then
+            echo "::error::Missing or empty secrets in the ${{ inputs.stage }} environment: ${missing[*]}"
+            exit 1
+          fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          SIGNIN_COOKIE_KEY: ${{ secrets.SIGNIN_COOKIE_KEY }}
+      - run: pnpm install --frozen-lockfile
+      - uses: aws-actions/configure-aws-credentials@v6
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: us-east-1
+      - name: Migrate database
+        run: pnpm --filter @poker-timer/api db:migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      - name: Sync state with AWS before deploying
+        shell: bash
+        run: |
+          if pnpm sst refresh --stage "$STAGE" 2>&1 | tee "$RUNNER_TEMP/refresh.log"; then
+            exit 0
+          fi
+          if grep -q "Stage not found" "$RUNNER_TEMP/refresh.log"; then
+            echo "::notice::$STAGE has never been deployed, so there is no state to refresh"
+            exit 0
+          fi
+          exit 1
+        env:
+          STAGE: ${{ inputs.stage }}
+          SST_SECRET_GoogleClientId: ${{ secrets.GOOGLE_CLIENT_ID }}
+          SST_SECRET_GoogleClientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          SST_SECRET_SigninCookieKey: ${{ secrets.SIGNIN_COOKIE_KEY }}
+      - name: Deploy
+        run: pnpm sst deploy --stage ${{ inputs.stage }}
+        env:
+          SST_SECRET_GoogleClientId: ${{ secrets.GOOGLE_CLIENT_ID }}
+          SST_SECRET_GoogleClientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          SST_SECRET_SigninCookieKey: ${{ secrets.SIGNIN_COOKIE_KEY }}
