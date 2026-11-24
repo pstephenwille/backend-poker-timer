@@ -71,12 +71,12 @@ Drizzle with the `node-postgres` driver over TCP to Neon's pooled endpoint — t
 - `users(id uuid, group_id, cognito_sub unique, email, google_name, google_avatar_url, username, username_lower unique, avatar_media_id null, deactivated_at null, created_at)`. `username_lower` is a generated column enforcing case-insensitive uniqueness; periods are kept, so `mike.j` and `mikej` are distinct. Username format follows Gmail's published rules (6–30 letters, digits, periods; no leading, trailing or consecutive periods), validated in the contracts schema and backed by a `CHECK` constraint.
 - `sessions(id_hash bytea primary key, user_id, is_admin, created_at, last_seen_at)` — only the SHA-256 of the 256-bit random session identifier is stored, so a database leak cannot be replayed as sessions. Expired rows are deleted on access, and every successful sign-in also deletes all expired sessions, so no scheduled job is needed.
 - `tournaments(id uuid, group_id, played_on timestamptz, winner_id, winning_hand, pot integer check ≥ 0, note varchar(500) null, photo_media_id null, recorded_by_id, created_at, updated_at)`.
-- `tournament_participants(tournament_id, user_id, is_opponent bool)`, primary key `(tournament_id, user_id)`; the winner is a participant row with `is_opponent = false`.
+- `tournament_participants(tournament_id, user_id, is_final_hand_opponent bool)`, primary key `(tournament_id, user_id)`; the winner is a participant row with `is_final_hand_opponent = false`.
 - `media(id uuid, owner_user_id, kind 'tournament_photo'|'avatar', upload_key, display_key null, status 'pending'|'ready', created_at)`.
 - `playedOn` travels as epoch milliseconds and is stored as a UTC instant. The server compares it only to its own clock (5-minute drift tolerance) and never reasons about time zones; clients localize it for display and, for a picked past date, send that day's local noon so viewers a few zones away still see the same date.
 - `winning_hand` is a Postgres enum in ascending order (`high_card` … `royal_flush`), so enum ordering is hand strength.
 
-Cross-field rules (winner ∈ participants, opponents ⊂ participants \ {winner}, recorder ∈ participants) are enforced in the zod schemas and the service layer inside one transaction.
+Cross-field rules (winner ∈ participants, Final Hand Opponents ⊂ participants \ {winner}, recorder ∈ participants) are enforced in the zod schemas and the service layer inside one transaction.
 
 ### API surface
 All paths are under `/api`.
@@ -97,7 +97,7 @@ All paths are under `/api`.
 Errors use one JSON shape `{ error: { code, message, details? } }` defined in contracts. List pagination uses an opaque cursor encoding `(played_on, created_at, id)`.
 
 ### Leaderboard: computed per request in a pure function
-The handler loads every member plus their wins (`played_on`, `created_at`, `winning_hand`) in one query and passes them to a pure `rankLeaderboard` function that sorts by win count, then lexicographically by the win hands ordered newest first, assigning standard competition ranks (1, 2, 2, 4) and ordering by display name within a shared rank. At this scale it is a single small query; the pure function is unit-tested exhaustively without a database.
+The handler loads every member plus their wins (`id`, `played_on`, `created_at`, `winning_hand`) in one query and passes them to a pure `rankLeaderboard` function that sorts by win count, then lexicographically by the win hands ordered newest first, then by the most recent win. No two members can win the same tournament, so every member with a win gets their own rank; members with no wins share the last rank, ordered by display name. At this scale it is a single small query; the pure function is unit-tested exhaustively without a database.
 *Alternative*: SQL window functions over arrays of hand ranks — possible but much harder to read and test.
 
 ### Photos: presigned POST → processor Lambda

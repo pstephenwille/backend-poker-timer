@@ -55,14 +55,14 @@ const tournamentFields = {
   winnerId: z.uuid(),
   winningHand: HandCategory,
   pot: Pot,
-  opponentIds: z.array(z.uuid()),
+  finalHandOpponentIds: z.array(z.uuid()),
   note: z.string().max(MAX_NOTE_LENGTH).nullable(),
 };
 
 interface CrossFieldValues {
   participantIds: string[];
   winnerId: string;
-  opponentIds: string[];
+  finalHandOpponentIds: string[];
 }
 
 function hasDuplicates(ids: string[]): boolean {
@@ -72,7 +72,7 @@ function hasDuplicates(ids: string[]): boolean {
 function crossFieldIssues({
   participantIds,
   winnerId,
-  opponentIds,
+  finalHandOpponentIds,
 }: CrossFieldValues): { path: string; message: string }[] {
   const issues: { path: string; message: string }[] = [];
   if (hasDuplicates(participantIds)) {
@@ -93,19 +93,22 @@ function crossFieldIssues({
       message: "the winner must be a participant",
     });
   }
-  if (hasDuplicates(opponentIds)) {
-    issues.push({ path: "opponentIds", message: "opponents must be distinct" });
-  }
-  if (opponentIds.includes(winnerId)) {
+  if (hasDuplicates(finalHandOpponentIds)) {
     issues.push({
-      path: "opponentIds",
-      message: "the winner cannot be an opponent",
+      path: "finalHandOpponentIds",
+      message: "final hand opponents must be distinct",
     });
   }
-  if (opponentIds.some((id) => !participantIds.includes(id))) {
+  if (finalHandOpponentIds.includes(winnerId)) {
     issues.push({
-      path: "opponentIds",
-      message: "every opponent must be a participant",
+      path: "finalHandOpponentIds",
+      message: "the winner cannot be a final hand opponent",
+    });
+  }
+  if (finalHandOpponentIds.some((id) => !participantIds.includes(id))) {
+    issues.push({
+      path: "finalHandOpponentIds",
+      message: "every final hand opponent must be a participant",
     });
   }
   return issues;
@@ -119,7 +122,7 @@ function crossFieldIssues({
 export const TournamentDetails = z
   .strictObject({
     ...tournamentFields,
-    opponentIds: tournamentFields.opponentIds.default([]),
+    finalHandOpponentIds: tournamentFields.finalHandOpponentIds.default([]),
     note: tournamentFields.note.default(null),
   })
   .superRefine((tournament, context) => {
@@ -151,7 +154,7 @@ export const Tournament = z.strictObject({
   playedOn: z.int().nonnegative(),
   participants: z.array(TournamentParticipant),
   winnerId: z.uuid(),
-  opponentIds: z.array(z.uuid()),
+  finalHandOpponentIds: z.array(z.uuid()),
   winningHand: HandCategory,
   pot: z.int().nonnegative(),
   note: z.string().nullable(),

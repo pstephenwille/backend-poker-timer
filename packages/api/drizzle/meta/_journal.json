@@ -36,6 +36,13 @@
       "when": 1795529629580,
       "tag": "0004_avatar_media_fk",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795561981939,
+      "tag": "0005_final_hand_opponents",
+      "breakpoints": true
     }
   ]
 }

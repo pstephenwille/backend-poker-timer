@@ -39,22 +39,30 @@ Members with equal wins SHALL be ordered by comparing their winning hands from m
 
 #### Scenario: Recency is by tournament date
 - **WHEN** a member's wins are compared for the tie-break
-- **THEN** "most recent" means latest `playedOn`, then latest `createdAt` for wins on the same date
+- **THEN** "most recent" means latest `playedOn`, then latest `createdAt` for wins on the same date, then the greater tournament `id`
 
-### Requirement: Shared ranks
-Members whose wins and entire winning-hand history are identical, including all members with zero wins, SHALL share a rank, and the next rank SHALL skip accordingly.
+### Requirement: Most-recent-win tie-break
+Members with equal wins and identical winning-hand histories SHALL be ordered by their most recent win, the member who won most recently ranking higher.
 
-#### Scenario: Full tie
-- **GIVEN** Ann and Bob each have 2 wins with identical hand sequences, and two members rank above them
+#### Scenario: Alternating identical winners
+- **GIVEN** six tournaments won in turn by Ann, Bob, Ann, Bob, Ann and Bob, all with the same winning hand
 - **WHEN** the leaderboard is read
-- **THEN** both are shown at rank 3, the next member is rank 5, and tied members are listed by display name
+- **THEN** Bob is ranked above Ann
+
+### Requirement: Distinct ranks
+Every member with at least one win SHALL have a rank of their own. Members with zero wins SHALL share the last rank and be listed by display name.
+
+#### Scenario: Identical histories
+- **GIVEN** Ann and Bob each have 2 wins with identical hand sequences, Bob's latest win being more recent, and two members rank above them
+- **WHEN** the leaderboard is read
+- **THEN** Bob is rank 3, Ann is rank 4 and the next member is rank 5
 
 #### Scenario: Zero-win members
 - **WHEN** several members have 0 wins
 - **THEN** they all share the last rank
 
 ### Requirement: Leaderboard entry content
-Each entry SHALL show rank, display name, avatar, wins, tournaments played, win rate, total winnings and the latest winning hand, and SHALL NOT include email addresses.
+Each entry SHALL show rank, display name, avatar, wins, tournaments played, win rate, total winnings, the latest winning hand and `lastWonAt` (the `playedOn` of the member's latest win, null without a win), and SHALL NOT include email addresses.
 
 #### Scenario: Entry fields
 - **WHEN** the leaderboard is read

@@ -13,6 +13,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 const ENTRY_FIELDS = [
   "avatarUrl",
   "displayName",
+  "lastWonAt",
   "latestWinningHand",
   "rank",
   "tournamentsPlayed",
@@ -44,11 +45,12 @@ async function recordWin(
   daysAgo: number,
   pot = 100,
 ) {
+  const playedOn = Date.now() - daysAgo * DAY_MS;
   const response = await app.request("/api/tournaments", {
     method: "POST",
     headers: { ...headers, "content-type": "application/json" },
     body: JSON.stringify({
-      playedOn: Date.now() - daysAgo * DAY_MS,
+      playedOn,
       participantIds: [annId, bobId, calId],
       winnerId,
       winningHand,
@@ -60,6 +62,7 @@ async function recordWin(
       `Recording a test tournament failed: ${await response.text()}`,
     );
   }
+  return playedOn;
 }
 
 async function readLeaderboard(requestHeaders: Record<string, string> = {}) {
@@ -90,11 +93,12 @@ describe("GET /api/leaderboard", () => {
       winRate: null,
       totalWinnings: 0,
       latestWinningHand: null,
+      lastWonAt: null,
     });
   });
 
   test("a recorded tournament counts immediately", async () => {
-    await recordWin(bobId, "flush", 1, 120);
+    const playedOn = await recordWin(bobId, "flush", 1, 120);
 
     const { entries } = await readLeaderboard();
 
@@ -106,6 +110,7 @@ describe("GET /api/leaderboard", () => {
       winRate: 1,
       totalWinnings: 120,
       latestWinningHand: "flush",
+      lastWonAt: playedOn,
     });
     expect(ranking(entries)).toEqual(["1 bob", "2 ann", "2 cal"]);
   });
@@ -122,6 +127,17 @@ describe("GET /api/leaderboard", () => {
     expect(ranking(entries)).toEqual(["1 ann", "2 bob", "3 cal"]);
     expect(entries.map((entry) => entry.tournamentsPlayed)).toEqual([5, 5, 5]);
     expect(entries.map((entry) => entry.winRate)).toEqual([0.4, 0.4, 0.2]);
+  });
+
+  test("identical records go to the most recent winner, each with their own rank", async () => {
+    await recordWin(annId, "flush", 6);
+    await recordWin(bobId, "flush", 5);
+    await recordWin(annId, "flush", 4);
+    await recordWin(bobId, "flush", 3);
+
+    const { entries } = await readLeaderboard();
+
+    expect(ranking(entries)).toEqual(["1 bob", "2 ann", "3 cal"]);
   });
 
   test("each entry has exactly the specified fields and no email", async () => {

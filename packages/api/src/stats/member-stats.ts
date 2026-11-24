@@ -9,6 +9,7 @@ import {
 } from "../leaderboard/rank-leaderboard.ts";
 
 export interface Participation {
+  tournamentId: string;
   won: boolean;
   pot: number;
   winningHand: HandCategory;
@@ -22,22 +23,23 @@ export interface MemberStats {
   winRate: number | null;
   totalWinnings: number;
   latestWinningHand: HandCategory | null;
+  lastWonAt: number | null;
   handBreakdown: HandBreakdown;
 }
 
 export function winsOf(participations: Participation[]): RankedWin[] {
   return participations
     .filter((participation) => participation.won)
-    .map(({ playedOn, createdAt, winningHand }) => ({
+    .map(({ tournamentId, playedOn, createdAt, winningHand }) => ({
+      tournamentId,
       playedOn,
       createdAt,
       hand: winningHand,
     }));
 }
 
-function latestHand(wins: RankedWin[]): HandCategory | null {
-  const [latest] = [...wins].sort(newestFirst);
-  return latest?.hand ?? null;
+function latestWin(wins: RankedWin[]): RankedWin | undefined {
+  return [...wins].sort(newestFirst)[0];
 }
 
 function breakdownStrongestFirst(wins: RankedWin[]): HandBreakdown {
@@ -55,6 +57,7 @@ export function summarizeParticipations(
   participations: Participation[],
 ): MemberStats {
   const wins = winsOf(participations);
+  const latest = latestWin(wins);
   const tournamentsPlayed = participations.length;
   return {
     tournamentsPlayed,
@@ -63,7 +66,8 @@ export function summarizeParticipations(
     totalWinnings: participations
       .filter((participation) => participation.won)
       .reduce((total, participation) => total + participation.pot, 0),
-    latestWinningHand: latestHand(wins),
+    latestWinningHand: latest?.hand ?? null,
+    lastWonAt: latest?.playedOn ?? null,
     handBreakdown: breakdownStrongestFirst(wins),
   };
 }

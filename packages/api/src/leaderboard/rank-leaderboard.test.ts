@@ -9,18 +9,20 @@ import {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const START = Date.UTC(2026, 0, 1, 20, 0);
 
-/** Hands listed oldest first, one tournament per day, so the last hand is the most recent win. */
+/** Hands listed oldest first, one tournament per day from `firstDay`, so the last hand is the most recent win. */
 function member(
   name: string,
   handsOldestFirst: HandCategory[] = [],
+  firstDay = 0,
 ): RankingCandidate {
   return {
     userId: name,
     displayName: name,
     wins: handsOldestFirst.map(
-      (hand, day): RankedWin => ({
-        playedOn: START + day * DAY_MS,
-        createdAt: START + day * DAY_MS,
+      (hand, index): RankedWin => ({
+        tournamentId: `${name}-${index}`,
+        playedOn: START + (firstDay + index) * DAY_MS,
+        createdAt: START + (firstDay + index) * DAY_MS,
         hand,
       }),
     ),
@@ -60,8 +62,18 @@ describe("rankLeaderboard", () => {
       userId: "Ann",
       displayName: "Ann",
       wins: [
-        { playedOn: START + DAY_MS, createdAt: START + DAY_MS, hand: "flush" },
-        { playedOn: START, createdAt: START + 9 * DAY_MS, hand: "pair" },
+        {
+          tournamentId: "t2",
+          playedOn: START + DAY_MS,
+          createdAt: START + DAY_MS,
+          hand: "flush",
+        },
+        {
+          tournamentId: "t1",
+          playedOn: START,
+          createdAt: START + 9 * DAY_MS,
+          hand: "pair",
+        },
       ],
     };
     const bob = member("Bob", ["royal_flush", "straight"]);
@@ -75,40 +87,96 @@ describe("rankLeaderboard", () => {
       userId: "Ann",
       displayName: "Ann",
       wins: [
-        { playedOn: sameDay, createdAt: sameDay + 2000, hand: "full_house" },
-        { playedOn: sameDay, createdAt: sameDay + 1000, hand: "pair" },
+        {
+          tournamentId: "t4",
+          playedOn: sameDay,
+          createdAt: sameDay + 2000,
+          hand: "full_house",
+        },
+        {
+          tournamentId: "t1",
+          playedOn: sameDay,
+          createdAt: sameDay + 1000,
+          hand: "pair",
+        },
       ],
     };
     const bob: RankingCandidate = {
       userId: "Bob",
       displayName: "Bob",
       wins: [
-        { playedOn: sameDay, createdAt: sameDay + 1000, hand: "full_house" },
-        { playedOn: sameDay, createdAt: sameDay + 2000, hand: "pair" },
+        {
+          tournamentId: "t2",
+          playedOn: sameDay,
+          createdAt: sameDay + 1000,
+          hand: "full_house",
+        },
+        {
+          tournamentId: "t3",
+          playedOn: sameDay,
+          createdAt: sameDay + 2000,
+          hand: "pair",
+        },
       ],
     };
 
     expect(standings([bob, ann])).toEqual(["1 Ann", "2 Bob"]);
   });
 
-  test("members with identical histories share a rank and the next rank skips", () => {
+  test("breaks a full tie by the most recent win", () => {
+    const winsOnDays = (days: number[]): RankedWin[] =>
+      days.map((day) => ({
+        tournamentId: `t${day}`,
+        playedOn: START + day * DAY_MS,
+        createdAt: START + day * DAY_MS,
+        hand: "flush",
+      }));
+    const alice: RankingCandidate = {
+      userId: "Alice",
+      displayName: "Alice",
+      wins: winsOnDays([1, 3, 5]),
+    };
+    const bob: RankingCandidate = {
+      userId: "Bob",
+      displayName: "Bob",
+      wins: winsOnDays([2, 4, 6]),
+    };
+
+    expect(standings([alice, bob])).toEqual(["1 Bob", "2 Alice"]);
+  });
+
+  test("members with wins never share a rank", () => {
     const leaders = [
       member("Ann", ["flush", "flush", "flush"]),
       member("Bob", ["pair", "pair", "pair"]),
     ];
     const tied = [
-      member("Dee", ["straight", "flush"]),
       member("Cal", ["straight", "flush"]),
+      member("Dee", ["straight", "flush"], 1),
     ];
     const trailing = member("Eve", ["pair"]);
 
     expect(standings([trailing, ...tied, ...leaders])).toEqual([
       "1 Ann",
       "2 Bob",
-      "3 Cal",
       "3 Dee",
+      "4 Cal",
       "5 Eve",
     ]);
+  });
+
+  test("uses the tournament id for wins played and recorded at the same instant", () => {
+    const at = START + DAY_MS;
+    const winIn = (tournamentId: string): RankedWin => ({
+      tournamentId,
+      playedOn: at,
+      createdAt: at,
+      hand: "pair",
+    });
+    const ann = { userId: "Ann", displayName: "Ann", wins: [winIn("a")] };
+    const bob = { userId: "Bob", displayName: "Bob", wins: [winIn("b")] };
+
+    expect(standings([ann, bob])).toEqual(["1 Bob", "2 Ann"]);
   });
 
   test("everyone without a win shares the last rank, listed by display name", () => {

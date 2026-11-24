@@ -91,12 +91,12 @@ describe("PATCH /api/tournaments/{id}", () => {
     expect(tournament.createdAt).toBeLessThan(tournament.updatedAt);
   });
 
-  test("replaces participants and opponents together", async () => {
+  test("replaces participants and Final Hand Opponents together", async () => {
     const dee = await signInTestUser(database, "dee");
 
     const response = await edit({
       participantIds: [recorder.user.id, participant.user.id, dee.user.id],
-      opponentIds: [dee.user.id],
+      finalHandOpponentIds: [dee.user.id],
     });
     const tournament = Tournament.parse(await response.json());
 
@@ -105,7 +105,7 @@ describe("PATCH /api/tournaments/{id}", () => {
       participant.user.id,
       dee.user.id,
     ]);
-    expect(tournament.opponentIds).toEqual([dee.user.id]);
+    expect(tournament.finalHandOpponentIds).toEqual([dee.user.id]);
     expect(
       await database
         .select()
@@ -143,12 +143,12 @@ describe("PATCH /api/tournaments/{id}", () => {
   });
 
   test("an edit that breaks a cross-field rule is refused", async () => {
-    const response = await edit({ opponentIds: [recorder.user.id] });
+    const response = await edit({ finalHandOpponentIds: [recorder.user.id] });
 
     expect(response.status).toBe(400);
     expect((await errorOf(response)).details).toContainEqual({
-      path: "opponentIds",
-      message: "the winner cannot be an opponent",
+      path: "finalHandOpponentIds",
+      message: "the winner cannot be a final hand opponent",
     });
   });
 

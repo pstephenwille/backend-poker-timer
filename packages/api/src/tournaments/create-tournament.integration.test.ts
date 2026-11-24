@@ -68,7 +68,7 @@ describe("POST /api/tournaments", () => {
       winnerId: annId,
       winningHand: "flush",
       pot: 120,
-      opponentIds: [],
+      finalHandOpponentIds: [],
       note: null,
       recordedById: annId,
     });
@@ -81,10 +81,10 @@ describe("POST /api/tournaments", () => {
     expect(tournament.updatedAt).toBe(tournament.createdAt);
   });
 
-  test("stores participants and opponents in one transaction", async () => {
+  test("stores participants and Final Hand Opponents in one transaction", async () => {
     const response = await record({
       ...minimalTournament(),
-      opponentIds: [bobId, calId],
+      finalHandOpponentIds: [bobId, calId],
       note: "Everyone busted on the river.",
     });
     const { id } = Tournament.parse(await response.json());
@@ -92,16 +92,16 @@ describe("POST /api/tournaments", () => {
     const rows = await database.select().from(tournamentParticipants);
     expect(rows).toHaveLength(3);
     expect(
-      rows.map(({ tournamentId, userId, isOpponent }) => ({
+      rows.map(({ tournamentId, userId, isFinalHandOpponent }) => ({
         tournamentId,
         userId,
-        isOpponent,
+        isFinalHandOpponent,
       })),
     ).toEqual(
       expect.arrayContaining([
-        { tournamentId: id, userId: annId, isOpponent: false },
-        { tournamentId: id, userId: bobId, isOpponent: true },
-        { tournamentId: id, userId: calId, isOpponent: true },
+        { tournamentId: id, userId: annId, isFinalHandOpponent: false },
+        { tournamentId: id, userId: bobId, isFinalHandOpponent: true },
+        { tournamentId: id, userId: calId, isFinalHandOpponent: true },
       ]),
     );
   });
@@ -204,19 +204,19 @@ describe("POST /api/tournaments", () => {
     ]);
   });
 
-  test("answers 400 when the winner is listed as an opponent", async () => {
+  test("answers 400 when the winner is listed as a Final Hand Opponent", async () => {
     const response = await record({
       ...minimalTournament(),
-      opponentIds: [annId],
+      finalHandOpponentIds: [annId],
     });
 
     expect(response.status).toBe(400);
   });
 
-  test("accepts every other participant as an opponent", async () => {
+  test("accepts every other participant as a Final Hand Opponent", async () => {
     const response = await record({
       ...minimalTournament(),
-      opponentIds: [bobId, calId],
+      finalHandOpponentIds: [bobId, calId],
     });
 
     expect(response.status).toBe(201);

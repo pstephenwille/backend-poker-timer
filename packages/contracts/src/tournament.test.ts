@@ -70,10 +70,10 @@ describe("HandCategory", () => {
 });
 
 describe("CreateTournament", () => {
-  test("a minimal tournament gets no opponents and no note", () => {
+  test("a minimal tournament gets no Final Hand Opponents and no note", () => {
     expect(CreateTournament.parse(minimal)).toEqual({
       ...minimal,
-      opponentIds: [],
+      finalHandOpponentIds: [],
       note: null,
     });
   });
@@ -156,22 +156,24 @@ describe("CreateTournament", () => {
     });
   });
 
-  describe("opponents", () => {
+  describe("Final Hand Opponents", () => {
     test("accepts every participant except the winner", () => {
-      expect(rejects({ ...minimal, opponentIds: [BOB, CAL] })).toBe(false);
+      expect(rejects({ ...minimal, finalHandOpponentIds: [BOB, CAL] })).toBe(
+        false,
+      );
     });
 
     test.each([
-      ["the winner", [ANN], "the winner cannot be an opponent"],
-      ["a duplicate", [BOB, BOB], "opponents must be distinct"],
+      ["the winner", [ANN], "the winner cannot be a final hand opponent"],
+      ["a duplicate", [BOB, BOB], "final hand opponents must be distinct"],
       [
         "someone who did not play",
         ["0b7e3f1a-2c4d-4e6f-8a9b-1c2d3e4f5a6b"],
-        "every opponent must be a participant",
+        "every final hand opponent must be a participant",
       ],
-    ])("rejects %s", (_label, opponentIds, message) => {
-      expect(issuesFor({ ...minimal, opponentIds })).toContainEqual({
-        path: "opponentIds",
+    ])("rejects %s", (_label, finalHandOpponentIds, message) => {
+      expect(issuesFor({ ...minimal, finalHandOpponentIds })).toContainEqual({
+        path: "finalHandOpponentIds",
         message,
       });
     });

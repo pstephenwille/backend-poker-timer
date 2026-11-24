@@ -50,7 +50,7 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 
 ## 8. Record and read tournaments
 
-- [x] 8.1 Add the `HandCategory` enum (ascending order) and tournament schemas (`CreateTournament`, `UpdateTournament`, `Tournament`, paginated list) with fixtures to contracts, including cross-field rules: winner ∈ participants, ≥ 2 distinct participants, opponents distinct ⊂ participants minus winner, whole-dollar `pot` ≥ 0, `note` ≤ 500, `playedOn` required integer epoch millis ≤ now + 5 minutes; verify unit tests for enum ordering and every rule in `specs/tournament-records`, including missing, past, future and invalid `playedOn`
+- [x] 8.1 Add the `HandCategory` enum (ascending order) and tournament schemas (`CreateTournament`, `UpdateTournament`, `Tournament`, paginated list) with fixtures to contracts, including cross-field rules: winner ∈ participants, ≥ 2 distinct participants, Final Hand Opponents distinct ⊂ participants minus winner, whole-dollar `pot` ≥ 0, `note` ≤ 500, `playedOn` required integer epoch millis ≤ now + 5 minutes; verify unit tests for enum ordering and every rule in `specs/tournament-records`, including missing, past, future and invalid `playedOn`
 - [x] 8.2 Add the `winning_hand` enum, `tournaments` (with `played_on` as `timestamptz` and the `pot ≥ 0` check) and `tournament_participants` tables in a new migration; verify `drizzle-kit generate` produces it and it applies on top of the slice 4 migration
 - [x] 8.3 Implement `POST /api/tournaments`: schema validation, all participants must be existing group members (400 naming unknown ids), recorder ∈ participants (403), transactional insert of tournament and participant rows; verify integration tests for every validation scenario in `specs/tournament-records`
 - [x] 8.4 Implement `GET /api/tournaments/{id}` and cursor-paginated `GET /api/tournaments` ordered by `played_on` desc, `created_at` desc, with display names; verify integration tests for ordering, cursor continuation and 404, and on `dev` record a tournament with `curl` (session cookie and `Origin`) and read it back
@@ -93,6 +93,12 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 
 - [x] 15.1 Process avatars to a display variant of at most 512 px on the longest side, keeping 1600 px for tournament photos; verify a unit test for the avatar size and, on `dev`, that a new avatar is served at no more than 512 px
 - [x] 15.2 Refuse an admin's request to deactivate their own account with 400 `cannot_deactivate_self`; verify an integration test that the account stays active and its session still works
+
+## 16. Domain language and ranking (contracts 1.0.0)
+
+- [x] 16.1 Rename `opponentIds` to `finalHandOpponentIds` in contracts, API and fixtures, and the `is_opponent` column to `is_final_hand_opponent` in one migration (`docs/adr/0001-rename-opponent-column-in-one-migration.md`); verify unit tests for the renamed rules and integration tests for storing and editing Final Hand Opponents
+- [x] 16.2 Break full ties in `rankLeaderboard` by the most recent win (`playedOn`, then `createdAt`, then tournament id), giving every member with a win their own rank; verify unit tests for alternating identical winners, distinct ranks and the id tie-break, and an integration test for the most recent winner ranking first
+- [x] 16.3 Add `lastWonAt` (the `playedOn` of the latest win, or null) to `LeaderboardEntry` and its fixture, and publish contracts `1.0.0`; verify unit tests for `lastWonAt` and the integration test of entry fields
 
 ## Workflow follow-up
 
