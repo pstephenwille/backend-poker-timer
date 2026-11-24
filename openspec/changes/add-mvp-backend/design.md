@@ -102,7 +102,7 @@ The handler loads every member plus their wins (`played_on`, `created_at`, `winn
 
 ### Photos: presigned POST → processor Lambda
 1. `…/uploads` checks authorization, creates a `media` row (`pending`) and returns an S3 presigned POST for `uploads/{mediaId}` with `content-length-range` ≤ 10 MB, an exact `Content-Type` condition from the allowed set, and a 15-minute expiry. The media bucket allows CORS POST from the app origin only.
-2. An S3 `ObjectCreated` notification on `uploads/` triggers the processor: decode (HEIC via `libheif-js` WASM, others via `sharp`), auto-rotate, resize to ≤ 1600 px, re-encode as WebP without metadata, write `display/{mediaId}.webp`, set the media row `ready`, then delete the original.
+2. An S3 `ObjectCreated` notification on `uploads/` triggers the processor: decode (HEIC via `libheif-js` WASM, others via `sharp`), auto-rotate, resize to ≤ 1600 px (≤ 512 px for an avatar), re-encode as WebP without metadata, write `display/{mediaId}.webp`, set the media row `ready`, then delete the original.
 3. The confirm endpoint `HeadObject`s the upload or display key, attaches the media to the tournament or user, and deletes the previously attached media's objects and row.
 
 Reads issue presigned GET URLs (1-hour expiry) for `ready` media only. A bucket lifecycle rule expires `uploads/` objects after 1 day so abandoned originals (which may contain GPS data) do not persist.

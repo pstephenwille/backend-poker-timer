@@ -58,6 +58,13 @@ export function adminRoutes({
       validate("param", UserIdParam),
       async (c) => {
         const { id } = c.req.valid("param");
+        if (id === c.get("session").userId) {
+          throw new ApiError(
+            400,
+            "cannot_deactivate_self",
+            "An admin cannot deactivate their own account",
+          );
+        }
         const member = await setDeactivatedAt(
           id,
           sql`coalesce(${users.deactivatedAt}, now())`,

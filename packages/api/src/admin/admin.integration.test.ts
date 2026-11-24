@@ -119,6 +119,22 @@ describe("POST /api/admin/users/{id}/deactivate", () => {
 
     expect(response.status).toBe(404);
   });
+
+  test("an admin cannot deactivate their own account, and keeps their session", async () => {
+    const response = await adminAction("deactivate", admin.user.id);
+
+    expect(response.status).toBe(400);
+    expect(ErrorEnvelope.parse(await response.json()).error.code).toBe(
+      "cannot_deactivate_self",
+    );
+    const [stored] = await database
+      .select()
+      .from(users)
+      .where(eq(users.id, admin.user.id));
+    expect(stored?.deactivatedAt).toBeNull();
+    const me = await app.request("/api/me", { headers: admin.headers });
+    expect(me.status).toBe(200);
+  });
 });
 
 describe("POST /api/admin/users/{id}/reactivate", () => {
