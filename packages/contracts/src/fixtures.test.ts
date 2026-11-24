@@ -1,7 +1,15 @@
 import { describe, expect, test } from "vitest";
 import type { ZodType } from "zod";
 import * as fixtures from "./fixtures.ts";
-import { Leaderboard, Logout, Me, MemberProfile, Members } from "./index.ts";
+import {
+  Leaderboard,
+  Logout,
+  Me,
+  MemberProfile,
+  Members,
+  Tournament,
+  TournamentPage,
+} from "./index.ts";
 
 type FixtureName = keyof typeof fixtures;
 
@@ -12,6 +20,8 @@ const schemaByFixture: Record<FixtureName, ZodType> = {
   me: Me,
   memberProfile: MemberProfile,
   members: Members,
+  tournament: Tournament,
+  tournamentPage: TournamentPage,
 };
 
 const fixtureEntries = Object.entries(fixtures) as [FixtureName, unknown][];
