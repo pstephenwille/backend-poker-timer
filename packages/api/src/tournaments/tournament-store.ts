@@ -43,6 +43,24 @@ function toTournament(
   };
 }
 
+function tournamentValues(details: TournamentDetails) {
+  return {
+    playedOn: new Date(details.playedOn),
+    winnerId: details.winnerId,
+    winningHand: details.winningHand,
+    pot: details.pot,
+    note: details.note,
+  };
+}
+
+function participantRows(tournamentId: string, details: TournamentDetails) {
+  return details.participantIds.map((userId) => ({
+    tournamentId,
+    userId,
+    isOpponent: details.opponentIds.includes(userId),
+  }));
+}
+
 function startsAfter(cursor: PageCursor): SQL {
   return sql`(${tournaments.playedOn}, ${tournaments.createdAt}, ${tournaments.id}) < (${new Date(cursor.playedOn).toISOString()}::timestamptz, ${new Date(cursor.createdAt).toISOString()}::timestamptz, ${cursor.id}::uuid)`;
 }
@@ -104,26 +122,39 @@ export function createTournamentStore(database: Database) {
         .insert(tournaments)
         .values({
           groupId: HOME_GROUP_ID,
-          playedOn: new Date(details.playedOn),
-          winnerId: details.winnerId,
-          winningHand: details.winningHand,
-          pot: details.pot,
-          note: details.note,
+          ...tournamentValues(details),
           recordedById,
         })
         .returning({ id: tournaments.id });
       if (!row) {
         throw new Error("Inserting a tournament returned no row");
       }
-      await transaction.insert(tournamentParticipants).values(
-        details.participantIds.map((userId) => ({
-          tournamentId: row.id,
-          userId,
-          isOpponent: details.opponentIds.includes(userId),
-        })),
-      );
+      await transaction
+        .insert(tournamentParticipants)
+        .values(participantRows(row.id, details));
       return row.id;
     });
+  }
+
+  /** Replaces the participant rows wholesale, so removed players and changed opponent flags never linger. */
+  async function update(id: string, details: TournamentDetails): Promise<void> {
+    await database.transaction(async (transaction) => {
+      await transaction
+        .update(tournaments)
+        .set({ ...tournamentValues(details), updatedAt: sql`now()` })
+        .where(eq(tournaments.id, id));
+      await transaction
+        .delete(tournamentParticipants)
+        .where(eq(tournamentParticipants.tournamentId, id));
+      await transaction
+        .insert(tournamentParticipants)
+        .values(participantRows(id, details));
+    });
+  }
+
+  /** Participant rows go with it through the foreign key's ON DELETE CASCADE. */
+  async function remove(id: string): Promise<void> {
+    await database.delete(tournaments).where(eq(tournaments.id, id));
   }
 
   async function findById(id: string): Promise<Tournament | null> {
@@ -163,7 +194,7 @@ export function createTournamentStore(database: Database) {
     };
   }
 
-  return { findUnknownMembers, insert, findById, listPage };
+  return { findUnknownMembers, insert, update, remove, findById, listPage };
 }
 
 export type TournamentStore = ReturnType<typeof createTournamentStore>;

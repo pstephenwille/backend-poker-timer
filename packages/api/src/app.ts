@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { adminRoutes } from "./admin/admin-routes.ts";
 import { authRoutes } from "./auth/auth-routes.ts";
 import type { IdentityProvider } from "./auth/identity-provider.ts";
 import { createSigninCallback } from "./auth/signin-callback.ts";
@@ -61,6 +62,7 @@ export function createApp({
     .route("/leaderboard", leaderboardRoutes(database))
     .route("/me", meRoutes(database))
     .route("/members", memberRoutes(database))
-    .route("/tournaments", tournamentRoutes(createTournamentStore(database)));
+    .route("/tournaments", tournamentRoutes(createTournamentStore(database)))
+    .route("/admin", adminRoutes({ database, sessionStore }));
   return installErrorHandling(new Hono().route("/api", api));
 }
