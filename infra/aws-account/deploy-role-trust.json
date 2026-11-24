@@ -12,7 +12,9 @@
           "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
           "token.actions.githubusercontent.com:sub": [
             "repo:pstephenwille/backend-poker-timer:environment:dev",
-            "repo:pstephenwille@498165/backend-poker-timer@1468066814:environment:dev"
+            "repo:pstephenwille@498165/backend-poker-timer@1468066814:environment:dev",
+            "repo:pstephenwille/backend-poker-timer:environment:prod",
+            "repo:pstephenwille@498165/backend-poker-timer@1468066814:environment:prod"
           ]
         }
       }

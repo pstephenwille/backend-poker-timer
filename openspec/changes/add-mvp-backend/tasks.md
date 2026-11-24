@@ -80,7 +80,7 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 ## 13. Contracts publishing
 
 - [x] 13.1 Configure the contracts package build (`tsc` to ESM + `.d.ts`), `exports` map and GitHub Packages `publishConfig`; verify `pnpm pack` contains `dist/index.js` and `dist/fixtures.js` and that `index.js` has no fixture data
-- [ ] 13.2 Add the contracts publish job that publishes to GitHub Packages only when the package version is new; verify an unchanged version skips publishing and a bumped version publishes
+- [x] 13.2 Add the contracts publish job that publishes to GitHub Packages only when the package version is new; verify an unchanged version skips publishing and a bumped version publishes
 
 ## 14. Custom domain and production
 

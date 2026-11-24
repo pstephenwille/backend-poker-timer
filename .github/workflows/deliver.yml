@@ -14,41 +14,14 @@ concurrency:
 
 jobs:
   dev:
-    runs-on: ubuntu-24.04
-    environment: dev
-    steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
-          cache: pnpm
-      - name: Require deploy secrets
-        run: |
-          missing=()
-          for name in DATABASE_URL GOOGLE_CLIENT_ID GOOGLE_CLIENT_SECRET SIGNIN_COOKIE_KEY; do
-            [[ -n "${!name}" ]] || missing+=("$name")
-          done
-          if (( ${#missing[@]} > 0 )); then
-            echo "::error::Missing or empty secrets in the dev environment: ${missing[*]}"
-            exit 1
-          fi
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          SIGNIN_COOKIE_KEY: ${{ secrets.SIGNIN_COOKIE_KEY }}
-      - run: pnpm install --frozen-lockfile
-      - uses: aws-actions/configure-aws-credentials@v6
-        with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: us-east-1
-      - name: Migrate database
-        run: pnpm --filter @poker-timer/api db:migrate
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-      - run: pnpm sst deploy --stage dev
-        env:
-          SST_SECRET_GoogleClientId: ${{ secrets.GOOGLE_CLIENT_ID }}
-          SST_SECRET_GoogleClientSecret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          SST_SECRET_SigninCookieKey: ${{ secrets.SIGNIN_COOKIE_KEY }}
+    uses: ./.github/workflows/deploy-stage.yml
+    with:
+      stage: dev
+    secrets: inherit
+
+  prod:
+    needs: dev
+    uses: ./.github/workflows/deploy-stage.yml
+    with:
+      stage: prod
+    secrets: inherit

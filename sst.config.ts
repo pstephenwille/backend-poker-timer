@@ -1,11 +1,7 @@
 /// <reference path="./.sst/platform/config.d.ts" />
 
 const AWS_REGION = "us-east-1";
-/**
- * SST v3 bundles an AWS provider that rejects nodejs24.x, so Lambdas run on Node 22
- * until SST is upgraded; the code itself targets both.
- */
-const LAMBDA_RUNTIME = "nodejs22.x";
+const LAMBDA_RUNTIME = "nodejs24.x";
 const GOOGLE_PROVIDER_NAME = "Google";
 const ADMIN_GROUP_NAME = "admin";
 const OIDC_SCOPES = ["openid", "email", "profile"];

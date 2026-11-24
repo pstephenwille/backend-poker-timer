@@ -1,6 +1,6 @@
 # backend-poker-timer
 
-Backend for [react-poker-timer](https://github.com/pstephenwille/react-poker-timer): Google sign-in, tournament records and a leaderboard for one home-game group. Infrastructure is defined with [SST v3](https://sst.dev) in `sst.config.ts`; the API is a Hono app in `packages/api`.
+Backend for [react-poker-timer](https://github.com/pstephenwille/react-poker-timer): Google sign-in, tournament records and a leaderboard for one home-game group. Infrastructure is defined with [SST v4](https://sst.dev) in `sst.config.ts`; the API is a Hono app in `packages/api`.
 
 ## Prerequisites
 
@@ -137,11 +137,24 @@ CI deploys with short-lived credentials from GitHub's OIDC provider; no AWS keys
    aws iam put-role-policy --role-name github-poker-timer --policy-name deploy --policy-document file:///tmp/policy.json
    ```
 
-   The trust policy admits only workflows from `pstephenwille/backend-poker-timer` running in the `dev` GitHub environment. The permissions cover the services SST uses; IAM roles, Lambda functions and S3 buckets are limited to the `poker-timer-*` names SST generates, plus SST's own `sst-state-*`/`sst-asset-*` buckets and `/sst/*` SSM parameters.
+   The trust policy admits only workflows from `pstephenwille/backend-poker-timer` running in the `dev` or `prod` GitHub environment. The permissions cover the services SST uses; IAM roles, Lambda functions and S3 buckets are limited to the `poker-timer-*` names SST generates, plus SST's own `sst-state-*`/`sst-asset-*` buckets and `/sst/*` SSM parameters.
 
 3. In the GitHub repository, add the variable **Settings → Secrets and variables → Actions → Variables → `AWS_DEPLOY_ROLE_ARN`** = `arn:aws:iam::<account-id>:role/github-poker-timer`.
 
-When the policy changes, rerun the `put-role-policy` command.
+When the permissions change, rerun the `put-role-policy` command. When the trust policy changes (for example, a new GitHub environment), apply it with `aws iam update-assume-role-policy --role-name github-poker-timer --policy-document file:///tmp/trust.json` after the `sed` above.
+
+### Bring up `prod`
+
+`prod` is deployed only by the delivery workflow, after `dev` succeeds and a required reviewer approves. Until the custom domain exists it serves on its CloudFront host. Once, before the first approval:
+
+1. In Neon, use the `production` branch; copy its **pooled** connection string and change `sslmode=require` to `sslmode=verify-full`.
+2. In GitHub, create the environment **Settings → Environments → New environment → `prod`**, tick **Required reviewers** and add yourself.
+3. Add the `prod` environment secrets: `DATABASE_URL` (step 1), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and a new `SIGNIN_COOKIE_KEY` (`openssl rand -base64 32`; never reuse another stage's key).
+4. Make sure the deploy role's trust policy admits the `prod` environment (see above).
+5. Merge to `master`, approve the `prod` job, and take `url` and `cognitoHostedDomain` from the deploy output.
+6. Add `<cognitoHostedDomain>/oauth2/idpresponse` to the Google OAuth client's **Authorized redirect URIs** (see [Google sign-in](#google-sign-in)).
+
+`prod` uses `removal: "retain"` and `protect: true`, so `sst remove --stage prod` refuses to run and its data survives a mistaken removal.
 
 ## Contracts package
 
@@ -159,5 +172,5 @@ To consume it from another repository, point the scope at GitHub Packages and au
 ## CI/CD
 
 - **PR gate** (`.github/workflows/pr-gate.yml`): Biome, typecheck, unit and integration tests on every pull request.
-- **Deliver** (`.github/workflows/deliver.yml`): every push to `master` migrates the `dev` database, then deploys the `dev` stage.
+- **Deliver** (`.github/workflows/deliver.yml`): every push to `master` migrates and deploys `dev`, then waits for a reviewer's approval in the `prod` environment and migrates and deploys `prod`. Both stages run the same steps from `.github/workflows/deploy-stage.yml`.
 - **Publish contracts** (`.github/workflows/publish-contracts.yml`): on a push to `master` that touches `packages/contracts`, publishes the package if its version is new.
