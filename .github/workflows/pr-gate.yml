@@ -24,3 +24,5 @@ jobs:
       - run: pnpm check
       - run: pnpm typecheck
       - run: pnpm test
+      - name: Build contracts package
+        run: pnpm --filter @pstephenwille/poker-timer-contracts build
