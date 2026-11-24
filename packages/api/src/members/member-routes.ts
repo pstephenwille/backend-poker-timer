@@ -13,6 +13,7 @@ import { validate } from "../http/validate.ts";
 import type { SessionEnv } from "../sessions/require-session.ts";
 import { summarizeParticipations } from "../stats/member-stats.ts";
 import { loadMemberParticipations } from "../stats/participation-store.ts";
+import type { AvatarUrls } from "../users/avatar-urls.ts";
 import {
   byDisplayName,
   profileColumns,
@@ -21,14 +22,17 @@ import {
 
 const MemberIdParam = z.object({ id: z.uuid() });
 
-export function memberRoutes(database: Database) {
+export function memberRoutes(database: Database, avatarUrls: AvatarUrls) {
   return new Hono<SessionEnv>()
     .get("/", async (c) => {
       const rows = await database
         .select(profileColumns)
         .from(users)
         .where(eq(users.groupId, HOME_GROUP_ID));
-      const members: Members = rows.map(toPublicProfile).sort(byDisplayName);
+      const avatars = await avatarUrls.forRows(rows);
+      const members: Members = rows
+        .map((row) => toPublicProfile(row, avatars.get(row.id) ?? null))
+        .sort(byDisplayName);
       return c.json(members);
     })
     .get("/:id", validate("param", MemberIdParam), async (c) => {
@@ -40,7 +44,10 @@ export function memberRoutes(database: Database) {
       const { tournamentsPlayed, wins, winRate, totalWinnings, handBreakdown } =
         summarizeParticipations(member.participations);
       const profile: MemberProfile = {
-        ...toPublicProfile(member.profile),
+        ...toPublicProfile(
+          member.profile,
+          await avatarUrls.forRow(member.profile),
+        ),
         username: member.profile.username,
         tournamentsPlayed,
         wins,

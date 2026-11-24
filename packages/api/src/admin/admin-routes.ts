@@ -9,6 +9,7 @@ import { ApiError } from "../http/api-error.ts";
 import { validate } from "../http/validate.ts";
 import type { SessionEnv } from "../sessions/require-session.ts";
 import type { SessionStore } from "../sessions/session-store.ts";
+import type { AvatarUrls } from "../users/avatar-urls.ts";
 import { profileColumns, toPublicProfile } from "../users/user-profile.ts";
 
 const UserIdParam = z.object({ id: z.uuid() });
@@ -16,6 +17,7 @@ const UserIdParam = z.object({ id: z.uuid() });
 export interface AdminRouteDependencies {
   database: Database;
   sessionStore: SessionStore;
+  avatarUrls: AvatarUrls;
 }
 
 const requireAdmin: MiddlewareHandler<SessionEnv> = async (c, next) => {
@@ -28,6 +30,7 @@ const requireAdmin: MiddlewareHandler<SessionEnv> = async (c, next) => {
 export function adminRoutes({
   database,
   sessionStore,
+  avatarUrls,
 }: AdminRouteDependencies) {
   async function setDeactivatedAt(
     userId: string,
@@ -45,7 +48,7 @@ export function adminRoutes({
         `No member with id ${userId}`,
       );
     }
-    return toPublicProfile(row);
+    return toPublicProfile(row, await avatarUrls.forRow(row));
   }
 
   return new Hono<SessionEnv>()
