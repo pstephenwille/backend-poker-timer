@@ -10,6 +10,7 @@ import { csrfProtection } from "./http/csrf-protection.ts";
 import { installErrorHandling } from "./http/error-handling.ts";
 import { noStore } from "./http/no-store.ts";
 import { leaderboardRoutes } from "./leaderboard/leaderboard-routes.ts";
+import { avatarRoutes } from "./me/avatar-routes.ts";
 import { meRoutes } from "./me/me-routes.ts";
 import type { MediaStorage } from "./media/media-storage.ts";
 import { createMediaStore } from "./media/media-store.ts";
@@ -19,6 +20,7 @@ import { createSessionStore } from "./sessions/session-store.ts";
 import { tournamentPhotoRoutes } from "./tournaments/tournament-photo-routes.ts";
 import { tournamentRoutes } from "./tournaments/tournament-routes.ts";
 import { createTournamentStore } from "./tournaments/tournament-store.ts";
+import { createAvatarUrls } from "./users/avatar-urls.ts";
 
 export interface AuthSettings {
   identityProvider: IdentityProvider;
@@ -46,6 +48,7 @@ export function createApp({
   const signinCookies = createSigninCookieSealer(signinCookieKey, clock);
   const mediaStore = createMediaStore(database, storage);
   const tournamentStore = createTournamentStore(database, mediaStore);
+  const avatarUrls = createAvatarUrls(mediaStore);
   const completeSignin = createSigninCallback({
     database,
     identityProvider,
@@ -66,14 +69,15 @@ export function createApp({
         completeSignin,
       }),
     )
-    .route("/leaderboard", leaderboardRoutes(database))
-    .route("/me", meRoutes(database))
-    .route("/members", memberRoutes(database))
+    .route("/leaderboard", leaderboardRoutes(database, avatarUrls))
+    .route("/me", meRoutes(database, avatarUrls))
+    .route("/me", avatarRoutes({ database, mediaStore, storage, avatarUrls }))
+    .route("/members", memberRoutes(database, avatarUrls))
     .route("/tournaments", tournamentRoutes(tournamentStore))
     .route(
       "/tournaments",
       tournamentPhotoRoutes({ tournamentStore, mediaStore, storage }),
     )
-    .route("/admin", adminRoutes({ database, sessionStore }));
+    .route("/admin", adminRoutes({ database, sessionStore, avatarUrls }));
   return installErrorHandling(new Hono().route("/api", api));
 }

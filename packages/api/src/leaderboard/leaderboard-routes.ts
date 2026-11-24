@@ -9,11 +9,17 @@ import {
   loadAllMemberParticipations,
   type MemberParticipations,
 } from "../stats/participation-store.ts";
+import type { AvatarUrls } from "../users/avatar-urls.ts";
+import { resolveDisplayName } from "../users/display-name.ts";
 import { toPublicProfile } from "../users/user-profile.ts";
 import { rankLeaderboard } from "./rank-leaderboard.ts";
 
-function toEntry(member: MemberParticipations, rank: number): LeaderboardEntry {
-  const { id, displayName, avatarUrl } = toPublicProfile(member.profile);
+function toEntry(
+  member: MemberParticipations,
+  rank: number,
+  avatarUrl: string | null,
+): LeaderboardEntry {
+  const { id, displayName } = toPublicProfile(member.profile, avatarUrl);
   const { wins, tournamentsPlayed, winRate, totalWinnings, latestWinningHand } =
     summarizeParticipations(member.participations);
   return {
@@ -30,7 +36,7 @@ function toEntry(member: MemberParticipations, rank: number): LeaderboardEntry {
 }
 
 /** Recomputed on every read: tens of members make one query and an in-memory sort trivially cheap. */
-export function leaderboardRoutes(database: Database) {
+export function leaderboardRoutes(database: Database, avatarUrls: AvatarUrls) {
   return new Hono().get("/", async (c) => {
     const members = await loadAllMemberParticipations(database);
     const memberById = new Map(
@@ -39,13 +45,16 @@ export function leaderboardRoutes(database: Database) {
     const ranked = rankLeaderboard(
       members.map((member) => ({
         userId: member.profile.id,
-        displayName: toPublicProfile(member.profile).displayName,
+        displayName: resolveDisplayName(member.profile),
         wins: winsOf(member.participations),
       })),
     );
+    const avatars = await avatarUrls.forRows(
+      members.map((member) => member.profile),
+    );
     const leaderboard: Leaderboard = ranked.flatMap(({ userId, rank }) => {
       const member = memberById.get(userId);
-      return member ? [toEntry(member, rank)] : [];
+      return member ? [toEntry(member, rank, avatars.get(userId) ?? null)] : [];
     });
     return c.json(leaderboard);
   });

@@ -7,6 +7,7 @@ import {
 } from "@pstephenwille/poker-timer-contracts";
 import { sql } from "drizzle-orm";
 import {
+  type AnyPgColumn,
   boolean,
   check,
   customType,
@@ -44,7 +45,10 @@ export const users = pgTable(
     usernameLower: text("username_lower")
       .generatedAlwaysAs(sql`lower("username")`)
       .unique(),
-    avatarMediaId: uuid("avatar_media_id"),
+    avatarMediaId: uuid("avatar_media_id").references(
+      (): AnyPgColumn => media.id,
+      { onDelete: "set null" },
+    ),
     deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()

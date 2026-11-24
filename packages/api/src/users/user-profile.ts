@@ -8,6 +8,7 @@ export const profileColumns = {
   username: users.username,
   googleName: users.googleName,
   googleAvatarUrl: users.googleAvatarUrl,
+  avatarMediaId: users.avatarMediaId,
   deactivatedAt: users.deactivatedAt,
 };
 
@@ -17,6 +18,7 @@ export interface ProfileRow {
   username: string | null;
   googleName: string | null;
   googleAvatarUrl: string | null;
+  avatarMediaId: string | null;
   deactivatedAt: Date | null;
 }
 
@@ -27,11 +29,15 @@ export interface PublicProfile {
   active: boolean;
 }
 
-export function toPublicProfile(row: ProfileRow): PublicProfile {
+/** The avatar URL is resolved separately because an uploaded avatar needs a signed URL. */
+export function toPublicProfile(
+  row: ProfileRow,
+  avatarUrl: string | null,
+): PublicProfile {
   return {
     id: row.id,
     displayName: resolveDisplayName(row),
-    avatarUrl: row.googleAvatarUrl,
+    avatarUrl,
     active: row.deactivatedAt === null,
   };
 }
