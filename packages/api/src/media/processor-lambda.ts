@@ -98,7 +98,11 @@ async function processUpload(key: string): Promise<void> {
       console.warn(JSON.stringify({ event: "upload_already_processed", key }));
       return;
     }
-    const display = await toDisplayWebp(original.bytes, original.contentType);
+    const display = await toDisplayWebp(
+      original.bytes,
+      original.contentType,
+      row.kind,
+    );
     await mediaStore.markReady(mediaId, await writeDisplay(mediaId, display));
     await storage.remove([key]);
   } catch (error) {

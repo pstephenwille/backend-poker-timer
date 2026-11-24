@@ -89,6 +89,11 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 - [ ] 14.3 On `prod`, sign in with Google, confirm no token is readable from page scripts and the session cookie has the required attributes, record a tournament with a photo, sign out and read the leaderboard anonymously; verify the photo is served via a signed URL without EXIF and the winner appears ranked correctly (deferred until the frontend is built, so it runs through the real UI)
 - [x] 14.4 Run `openspec validate add-mvp-backend --strict`, the full test suite and Biome; verify all pass
 
+## 15. Follow-ups
+
+- [x] 15.1 Process avatars to a display variant of at most 512 px on the longest side, keeping 1600 px for tournament photos; verify a unit test for the avatar size and, on `dev`, that a new avatar is served at no more than 512 px
+- [x] 15.2 Refuse an admin's request to deactivate their own account with 400 `cannot_deactivate_self`; verify an integration test that the account stays active and its session still works
+
 ## Workflow follow-up
 
 - Archive the change once implementation is reviewed and deployed to `prod`.

@@ -1,8 +1,13 @@
 import type { ImageContentType } from "@pstephenwille/poker-timer-contracts";
 import libheif from "libheif-js/wasm-bundle.js";
 import sharp, { type Sharp } from "sharp";
+import type { MediaKind } from "./media-store.ts";
 
-export const MAX_DISPLAY_DIMENSION = 1600;
+/** Avatars are only ever shown small, so a smaller variant keeps downloads light. */
+export const MAX_DISPLAY_DIMENSION: Record<MediaKind, number> = {
+  tournament_photo: 1600,
+  avatar: 512,
+};
 export const DISPLAY_CONTENT_TYPE = "image/webp";
 const DISPLAY_QUALITY = 80;
 const RGBA_CHANNELS = 4;
@@ -58,14 +63,16 @@ async function openImage(
 export async function toDisplayWebp(
   original: Buffer,
   contentType: ImageContentType,
+  kind: MediaKind,
 ): Promise<Buffer> {
+  const maxDimension = MAX_DISPLAY_DIMENSION[kind];
   try {
     const image = await openImage(original, contentType);
     return await image
       .rotate()
       .resize({
-        width: MAX_DISPLAY_DIMENSION,
-        height: MAX_DISPLAY_DIMENSION,
+        width: maxDimension,
+        height: maxDimension,
         fit: "inside",
         withoutEnlargement: true,
       })

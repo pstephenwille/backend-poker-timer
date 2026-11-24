@@ -44,11 +44,15 @@ The system SHALL attach an uploaded image only when the client confirms the uplo
 - **THEN** the tournament has no photo and the stored image is deleted
 
 ### Requirement: Metadata stripping and display variant
-The system SHALL strip all EXIF and location metadata from every uploaded image and SHALL produce a resized display variant no larger than 1600 px on its longest side; only processed images are ever served.
+The system SHALL strip all EXIF and location metadata from every uploaded image and SHALL produce a resized display variant no larger than 1600 px on its longest side for a tournament photo and 512 px for an avatar; only processed images are ever served.
 
 #### Scenario: Photo with GPS data
 - **WHEN** a member uploads a photo containing GPS coordinates
 - **THEN** no image served by the system contains those coordinates
+
+#### Scenario: Avatar display size
+- **WHEN** a member uploads a 3000 × 2000 px avatar
+- **THEN** the avatar is served at 512 × 341 px
 
 #### Scenario: Processing not yet finished
 - **WHEN** a tournament is read before its photo has been processed

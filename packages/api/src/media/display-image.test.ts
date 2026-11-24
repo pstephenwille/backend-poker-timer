@@ -15,6 +15,8 @@ const EXIF_HEADER_BYTES = 6;
 const IFD_ENTRY_BYTES = 12;
 const CAMERA_MAKE = "TestCam";
 const ROTATE_90_CLOCKWISE = 6;
+const PHOTO_MAX = MAX_DISPLAY_DIMENSION.tournament_photo;
+const AVATAR_MAX = MAX_DISPLAY_DIMENSION.avatar;
 
 function blankImage(width: number, height: number) {
   return sharp({
@@ -72,7 +74,11 @@ describe("toDisplayWebp", () => {
     expect(hasGpsDirectory((await sharp(original).metadata()).exif)).toBe(true);
     expect(original.includes(Buffer.from(CAMERA_MAKE))).toBe(true);
 
-    const display = await toDisplayWebp(original, "image/jpeg");
+    const display = await toDisplayWebp(
+      original,
+      "image/jpeg",
+      "tournament_photo",
+    );
     const described = await describeImage(display);
 
     expect(described.format).toBe("webp");
@@ -87,11 +93,25 @@ describe("toDisplayWebp", () => {
     const display = await toDisplayWebp(
       await jpegWithGps(3000, 2000),
       "image/jpeg",
+      "tournament_photo",
     );
 
     expect(await describeImage(display)).toMatchObject({
-      width: MAX_DISPLAY_DIMENSION,
+      width: PHOTO_MAX,
       height: 1067,
+    });
+  });
+
+  test("fits an avatar's longest side within 512 px, keeping the aspect ratio", async () => {
+    const display = await toDisplayWebp(
+      await jpegWithGps(3000, 2000),
+      "image/jpeg",
+      "avatar",
+    );
+
+    expect(await describeImage(display)).toMatchObject({
+      width: AVATAR_MAX,
+      height: 341,
     });
   });
 
@@ -101,11 +121,15 @@ describe("toDisplayWebp", () => {
       .withMetadata({ orientation: ROTATE_90_CLOCKWISE })
       .toBuffer();
 
-    const display = await toDisplayWebp(sideways, "image/jpeg");
+    const display = await toDisplayWebp(
+      sideways,
+      "image/jpeg",
+      "tournament_photo",
+    );
 
     expect(await describeImage(display)).toMatchObject({
       width: 1067,
-      height: MAX_DISPLAY_DIMENSION,
+      height: PHOTO_MAX,
       exif: undefined,
     });
   });
@@ -113,7 +137,7 @@ describe("toDisplayWebp", () => {
   test("does not enlarge a small image", async () => {
     const small = await blankImage(800, 600).png().toBuffer();
 
-    const display = await toDisplayWebp(small, "image/png");
+    const display = await toDisplayWebp(small, "image/png", "tournament_photo");
 
     expect(await describeImage(display)).toMatchObject({
       format: "webp",
@@ -125,20 +149,24 @@ describe("toDisplayWebp", () => {
   test("accepts WebP input", async () => {
     const webp = await blankImage(2000, 2000).webp().toBuffer();
 
-    const display = await toDisplayWebp(webp, "image/webp");
+    const display = await toDisplayWebp(webp, "image/webp", "tournament_photo");
 
     expect(await describeImage(display)).toMatchObject({
-      width: MAX_DISPLAY_DIMENSION,
-      height: MAX_DISPLAY_DIMENSION,
+      width: PHOTO_MAX,
+      height: PHOTO_MAX,
     });
   });
 
   test("decodes a HEIC photo and resizes it", async () => {
-    const display = await toDisplayWebp(HEIC_FIXTURE, "image/heic");
+    const display = await toDisplayWebp(
+      HEIC_FIXTURE,
+      "image/heic",
+      "tournament_photo",
+    );
 
     expect(await describeImage(display)).toMatchObject({
       format: "webp",
-      width: MAX_DISPLAY_DIMENSION,
+      width: PHOTO_MAX,
       height: 1200,
       exif: undefined,
     });
@@ -147,14 +175,14 @@ describe("toDisplayWebp", () => {
   test("rejects bytes that are not an image", async () => {
     const pdf = Buffer.from("%PDF-1.7\n1 0 obj << /Type /Catalog >> endobj\n");
 
-    await expect(toDisplayWebp(pdf, "image/jpeg")).rejects.toBeInstanceOf(
-      UnreadableImageError,
-    );
+    await expect(
+      toDisplayWebp(pdf, "image/jpeg", "tournament_photo"),
+    ).rejects.toBeInstanceOf(UnreadableImageError);
   });
 
   test("rejects a file claiming to be HEIC that is not", async () => {
     await expect(
-      toDisplayWebp(await jpegWithGps(), "image/heic"),
+      toDisplayWebp(await jpegWithGps(), "image/heic", "tournament_photo"),
     ).rejects.toBeInstanceOf(UnreadableImageError);
   });
 });

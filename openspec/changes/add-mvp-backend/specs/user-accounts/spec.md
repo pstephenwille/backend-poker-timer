@@ -127,7 +127,7 @@ The system SHALL treat a user as an admin only when the identity provider assert
 - **THEN** they gain admin access at their next sign-in
 
 ### Requirement: Account deactivation
-The system SHALL let an admin deactivate and reactivate an account; deactivation SHALL end all of that user's sessions and block new sign-ins, while their tournaments, stats and leaderboard placement remain unchanged.
+The system SHALL let an admin deactivate and reactivate any account but their own; deactivation SHALL end all of that user's sessions and block new sign-ins, while their tournaments, stats and leaderboard placement remain unchanged.
 
 #### Scenario: Deactivating a signed-in user
 - **WHEN** an admin deactivates a user who has active sessions
@@ -144,6 +144,10 @@ The system SHALL let an admin deactivate and reactivate an account; deactivation
 #### Scenario: Reactivation
 - **WHEN** an admin reactivates a deactivated account
 - **THEN** that user can sign in again
+
+#### Scenario: Admin deactivates their own account
+- **WHEN** an admin asks to deactivate their own account
+- **THEN** the system responds 400 with `cannot_deactivate_self`, and the account and its sessions are unchanged
 
 ### Requirement: No self-service account deletion
 The system SHALL NOT expose any endpoint for users to delete their own account.
