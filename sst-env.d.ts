@@ -36,6 +36,10 @@ declare module "sst" {
       "type": "sst.sst.Secret"
       "value": string
     }
+    "ImageProcessor": {
+      "name": string
+      "type": "sst.aws.Function"
+    }
     "Media": {
       "name": string
       "type": "sst.aws.Bucket"

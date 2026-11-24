@@ -132,19 +132,25 @@ export default $config({
       ],
     });
 
+    /**
+     * Defined on its own rather than inline in notify(): SST's generated names for an
+     * inline function exceed AWS's 64-character limit and get truncated to "po-…",
+     * which the deploy role's poker-timer-* permissions do not cover.
+     */
+    const imageProcessor = new sst.aws.Function("ImageProcessor", {
+      handler: "packages/api/src/media/processor-lambda.handler",
+      architecture: "arm64",
+      runtime: LAMBDA_RUNTIME,
+      memory: PROCESSOR_MEMORY,
+      timeout: PROCESSOR_TIMEOUT,
+      link: [databaseUrl, media],
+      nodejs: { install: ["sharp", "libheif-js"] },
+    });
     media.notify({
       notifications: [
         {
           name: "ProcessUploads",
-          function: {
-            handler: "packages/api/src/media/processor-lambda.handler",
-            architecture: "arm64",
-            runtime: LAMBDA_RUNTIME,
-            memory: PROCESSOR_MEMORY,
-            timeout: PROCESSOR_TIMEOUT,
-            link: [databaseUrl, media],
-            nodejs: { install: ["sharp", "libheif-js"] },
-          },
+          function: imageProcessor.arn,
           events: ["s3:ObjectCreated:*"],
           filterPrefix: UPLOADS_PREFIX,
         },
