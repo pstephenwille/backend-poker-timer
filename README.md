@@ -1,11 +1,12 @@
 # backend-poker-timer
 
-Backend for [react-poker-timer](https://github.com/pstephenwille/react-poker-timer): Google sign-in, tournament records and a leaderboard for one home-game group. Infrastructure is defined with [SST v4](https://sst.dev) in `sst.config.ts`; the API is a Hono app in `packages/api`.
+Backend for [frontend-poker-timer](https://github.com/pstephenwille/frontend-poker-timer): Google sign-in, tournament records and a leaderboard for one home-game group. Infrastructure is defined with [SST v4](https://sst.dev) in `sst.config.ts`; the API is a Hono app in `packages/api`.
 
 ## Prerequisites
 
 - Node 24 (`.nvmrc`) and pnpm (`corepack enable`)
-- AWS credentials for the target account in the environment (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`). All resources are created in `us-east-1` regardless of `AWS_DEFAULT_REGION`.
+- Docker running, for the integration tests (Testcontainers starts Postgres)
+- For a personal stage only: AWS credentials for the account in the environment (`AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`). All resources are created in `us-east-1` regardless of `AWS_DEFAULT_REGION`.
 
 ## Local checks
 
@@ -18,15 +19,17 @@ pnpm test
 
 ## Stages
 
-| Stage         | Purpose                              | On `sst remove`                                  |
-| ------------- | ------------------------------------ | ------------------------------------------------ |
-| `prod`        | production                           | resources retained, stage protected from removal |
-| `dev`         | shared, deployed by CI from `master` | resources retained                               |
-| `<your-name>` | personal                             | everything deleted                               |
+| Stage         | Deployed by                                         | On `sst remove`                                  |
+| ------------- | --------------------------------------------------- | ------------------------------------------------ |
+| `prod`        | CI, after `dev` succeeds and a reviewer approves     | resources retained, stage protected from removal |
+| `dev`         | CI, on every push to `master`                       | resources retained                               |
+| `<your-name>` | you, from the CLI                                   | everything deleted                               |
 
-Stage behavior is decided in one place, `infra/stage-settings.ts`.
+`dev` and `prod` are deployed only through CI. Never run `sst deploy`, `sst secret set`, migrations or a frontend upload against them by hand. The commands below are for your own personal stage. Stage behavior is decided in one place, `infra/stage-settings.ts`.
 
-### Bring up a personal stage
+## Working on a personal stage
+
+### Deploy
 
 ```sh
 pnpm sst deploy --stage <your-name>
@@ -34,25 +37,38 @@ pnpm sst deploy --stage <your-name>
 
 The deploy prints:
 
-- `url` — the CloudFront address serving both the frontend (`/`) and the API (`/api/*`)
-- `frontendBucket` — the S3 bucket the frontend build is uploaded into
-- `distributionId` — the CloudFront distribution to invalidate after a frontend upload
+- `url`: the CloudFront address serving the API at `/api/*`, and a placeholder `index.html` at `/`
+- `cognitoHostedDomain`: the stage's Cognito domain, needed for its Google redirect URI
 
-Until the frontend is deployed, the bucket holds a placeholder `index.html`. Smoke check:
+Work on the frontend runs on localhost against the stage (see [Serve a local frontend dev server](#serve-a-local-frontend-dev-server)), so nothing is uploaded into a personal stage. Smoke check:
 
 ```sh
 curl -i <url>/api/anything   # Hono's JSON 401 (members-only by default), Cache-Control: no-store
 curl -i <url>/some/page      # the placeholder index.html (SPA fallback)
 ```
 
-To deploy a frontend build into the stage:
+### Secrets and database
+
+Each personal stage needs its own Neon branch and four SST secrets. Set each with `pnpm sst secret set <Name> --stage <your-name> < file`, reading the value from stdin so it stays out of shell history.
+
+| SST secret           | Value                                                                  |
+| -------------------- | ---------------------------------------------------------------------- |
+| `DatabaseUrl`        | the **pooled** connection string of the stage's Neon branch            |
+| `GoogleClientId`     | the Google OAuth client ID                                              |
+| `GoogleClientSecret` | the Google OAuth client secret                                         |
+| `SigninCookieKey`    | base64 of 32 random bytes (`openssl rand -base64 32`), never reused    |
+
+Migrate the stage's database before deploying code that needs the new schema:
 
 ```sh
-aws s3 sync dist/ s3://<frontendBucket>/ --delete
-aws cloudfront create-invalidation --distribution-id <distributionId> --paths "/*"
+DATABASE_URL="<pooled-connection-string>" pnpm --filter @poker-timer/api db:migrate
 ```
 
-### Serve a local frontend dev server from a personal stage
+After the first deploy, add `<cognitoHostedDomain>/oauth2/idpresponse` to the Google OAuth client's **Authorized redirect URIs**. Until then, Google answers sign-in with `redirect_uri_mismatch`.
+
+Smoke check: open `<url>/api/auth/login` in a browser, sign in with Google, then `<url>/api/me` returns you. A failed sign-in lands on `<url>/?signinError=<code>&ref=<id>`; search the API function's CloudWatch logs for the `ref` to see why.
+
+### Serve a local frontend dev server
 
 Sign-in only completes on the origin Cognito returns to, so a frontend dev server on localhost can't sign in against a stage that serves its own frontend. Set `LOCAL_FRONTEND_ORIGIN` on a personal stage to make localhost its app origin. To keep it set for every deploy of that stage, put it in `.env.<your-name>` beside `sst.config.ts` (git ignores `.env.*`):
 
@@ -76,51 +92,7 @@ Then run the frontend with its `/api` proxy pointed at the stage: `API_ORIGIN=<u
 - While set, the stage's own CloudFront address can't sign in. Remove the variable (rename or delete `.env.<your-name>`) and deploy again to switch back.
 - `dev` and `prod` refuse the variable. It must be `http://localhost:<port>`.
 
-### Database
-
-Each stage has its own [Neon](https://neon.tech) branch in the one Neon project (`production`, `dev`, and one per personal stage). Create the branch in the Neon console and copy its **pooled** connection string.
-
-- **Personal stages:**
-
-  ```sh
-  pnpm sst secret set DatabaseUrl "<pooled-connection-string>" --stage <stage>
-  DATABASE_URL="<pooled-connection-string>" pnpm --filter @poker-timer/api db:migrate
-  ```
-
-- **`dev` and `prod`:** store the connection string only as the `DATABASE_URL` secret of the matching GitHub environment (**Settings → Environments → <stage> → Environment secrets**). The delivery workflow migrates with it, then passes it to `sst deploy` as `SST_SECRET_DatabaseUrl`.
-
-Schema changes: edit `packages/api/src/db/schema.ts`, then `pnpm --filter @poker-timer/api db:generate` and commit the generated migration. Migrations run before the new code is deployed, so each one must stay compatible with the code already running (expand, then contract in a later release).
-
-Integration tests start Postgres in Docker with Testcontainers, so Docker must be running for `pnpm test`.
-
-### Google sign-in
-
-Sign-in goes browser → `/api/auth/login` → Cognito's hosted domain → Google → Cognito → `/api/auth/callback`. Each stage has its own Cognito user pool, created by `sst.config.ts`; one Google OAuth client (Google Cloud console → **APIs & Services → Credentials**, type _Web application_) serves every stage.
-
-Each stage needs three secrets:
-
-| SST secret           | Value                                                                |
-| -------------------- | -------------------------------------------------------------------- |
-| `GoogleClientId`     | the Google OAuth client ID                                           |
-| `GoogleClientSecret` | the Google OAuth client secret                                       |
-| `SigninCookieKey`    | base64 of 32 random bytes (`openssl rand -base64 32`), one per stage |
-
-- **Personal stages:** `pnpm sst secret set <Name> --stage <your-name>` for each, reading the value from stdin (`pnpm sst secret set <Name> --stage <your-name> < file`) so it stays out of shell history.
-- **`dev` and `prod`:** never use `sst secret set`. Add `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` and `SIGNIN_COOKIE_KEY` as secrets of the matching GitHub environment; the delivery workflow passes them to `sst deploy` as `SST_SECRET_<Name>` variables. GitHub turns a missing secret into an empty string rather than an error, so the workflow's first step fails the run, naming any secret that is missing or empty, before anything is migrated or deployed.
-
-After the stage's first deploy, register its Cognito redirect URI with Google. The deploy prints `cognitoHostedDomain`; append `/oauth2/idpresponse` and add the result under the OAuth client's **Authorized redirect URIs**:
-
-```
-https://poker-timer-<stage>-<account-id>.auth.us-east-1.amazoncognito.com/oauth2/idpresponse
-```
-
-Until it is registered, Google answers sign-in with `redirect_uri_mismatch`. The app's own callback (`<url>/api/auth/callback`) is registered with Cognito by `sst.config.ts` and needs no Google entry.
-
-Smoke check: open `<url>/api/auth/login` in a browser, sign in with Google, then `<url>/api/me` returns you. A failed sign-in lands on `<url>/?signinError=<code>&ref=<id>`; search the API function's CloudWatch logs for the `ref` to see why.
-
-To make someone an admin, add them to the stage's user pool `admin` group (Cognito console → the pool → **Groups → admin**) after their first sign-in; it takes effect at their next sign-in.
-
-### Tear down a personal stage
+### Tear down
 
 ```sh
 pnpm sst remove --stage <your-name>
@@ -128,65 +100,53 @@ pnpm sst remove --stage <your-name>
 
 Personal stages use `removal: "remove"`, so this deletes every resource the stage created.
 
-## One-time AWS account setup
+## Schema changes
 
-These are account-level, not per stage, so they are created by hand rather than in `sst.config.ts`.
+Edit `packages/api/src/db/schema.ts`, then run `pnpm --filter @poker-timer/api db:generate` and commit the generated migration. CI migrates `dev` and `prod` before deploying the new code, so each migration must stay compatible with the code already running (expand, then contract in a later release).
 
-### Budget alert
+## Account and CI setup
 
-Every account has a monthly cost budget that emails the account owner, as a guard against a runaway resource.
+These pieces are created by hand, once, outside `sst.config.ts`. CI depends on every one of them.
 
-1. Open **AWS Billing and Cost Management → Budgets → Create budget**.
-2. Choose **Use a template → Monthly cost budget**.
-3. Name it `monthly-cost`, set the amount to **$10**, and enter the account owner's email.
-4. Create it. AWS emails at 85% and 100% of actual spend, and at 100% of forecast spend.
+### AWS account
 
-### GitHub Actions deploy role
+| Piece                  | Fact                                                                                                                                                                                                                             |
+| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Region                 | `us-east-1` for everything                                                                                                                                                                                                       |
+| GitHub OIDC provider   | `token.actions.githubusercontent.com`, audience `sts.amazonaws.com`. CI signs in through it, so no AWS keys are stored in GitHub.                                                                                                |
+| Deploy role            | `github-poker-timer`. Trust policy: `infra/aws-account/deploy-role-trust.json`, admitting only this repo's `dev` and `prod` GitHub environments. Inline policy `deploy`: `infra/aws-account/deploy-role-policy.json`. Both files hold an `ACCOUNT_ID` placeholder; reapply them whenever they change. |
+| Deploy role's reach    | IAM roles, Lambda functions and S3 buckets named `poker-timer-*`, SST's `sst-state-*` and `sst-asset-*` buckets, and `/sst/*` SSM parameters. Resource names over 64 characters get truncated by SST and fall outside this scope. |
+| Budget                 | `monthly-cost`: $10 a month, emailing the account owner at 85% and 100% of actual spend and 100% of forecast                                                                                                                     |
+| Admins                 | members of each stage's Cognito user pool `admin` group, added in the Cognito console after the person's first sign-in; it takes effect at their next sign-in                                                                   |
 
-CI deploys with short-lived credentials from GitHub's OIDC provider; no AWS keys are stored in GitHub. The role is created by hand because the pipeline cannot create the role it signs in with. The policy documents live in `infra/aws-account/` with an `ACCOUNT_ID` placeholder.
+### GitHub
 
-1. Create the GitHub OIDC identity provider, once per account (skip if `token.actions.githubusercontent.com` is already listed under **IAM → Identity providers**):
+| Where                                       | Name                   | Value                                                                                       |
+| ------------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------- |
+| Repository Actions variable                 | `AWS_DEPLOY_ROLE_ARN`  | `arn:aws:iam::<account-id>:role/github-poker-timer`                                         |
+| `dev` and `prod` environment secrets        | `DATABASE_URL`         | the pooled connection string of the stage's Neon branch                                     |
+|                                             | `GOOGLE_CLIENT_ID`     | the Google OAuth client ID                                                                  |
+|                                             | `GOOGLE_CLIENT_SECRET` | the Google OAuth client secret                                                              |
+|                                             | `SIGNIN_COOKIE_KEY`    | base64 of 32 random bytes, different for each stage                                         |
+| `prod` environment                          | Required reviewers     | whoever approves `prod` deploys                                                             |
 
-   ```sh
-   aws iam create-open-id-connect-provider \
-     --url https://token.actions.githubusercontent.com \
-     --client-id-list sts.amazonaws.com
-   ```
+The deploy workflow passes the secrets to `sst deploy` as `SST_SECRET_DatabaseUrl`, `SST_SECRET_GoogleClientId` and so on, and its first step fails the run, naming any secret that is missing or empty, before anything is migrated or deployed.
 
-2. Create the deploy role and its permissions:
+### Neon
 
-   ```sh
-   ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
-   sed "s/ACCOUNT_ID/$ACCOUNT_ID/g" infra/aws-account/deploy-role-trust.json > /tmp/trust.json
-   sed "s/ACCOUNT_ID/$ACCOUNT_ID/g" infra/aws-account/deploy-role-policy.json > /tmp/policy.json
-   aws iam create-role --role-name github-poker-timer --assume-role-policy-document file:///tmp/trust.json
-   aws iam put-role-policy --role-name github-poker-timer --policy-name deploy --policy-document file:///tmp/policy.json
-   ```
+One Neon project, with one branch per stage: `production` for `prod`, `dev` for `dev`, and one per personal stage. Every stage uses the branch's **pooled** connection string; `prod`'s uses `sslmode=verify-full`.
 
-   The trust policy admits only workflows from `pstephenwille/backend-poker-timer` running in the `dev` or `prod` GitHub environment. The permissions cover the services SST uses; IAM roles, Lambda functions and S3 buckets are limited to the `poker-timer-*` names SST generates, plus SST's own `sst-state-*`/`sst-asset-*` buckets and `/sst/*` SSM parameters.
+### Google
 
-3. In the GitHub repository, add the variable **Settings → Secrets and variables → Actions → Variables → `AWS_DEPLOY_ROLE_ARN`** = `arn:aws:iam::<account-id>:role/github-poker-timer`.
+One Google OAuth client (type _Web application_) serves every stage. Sign-in goes browser → `/api/auth/login` → Cognito → Google → Cognito → `/api/auth/callback`. Each stage's `<cognitoHostedDomain>/oauth2/idpresponse` must be listed under the client's **Authorized redirect URIs**. The app's own callback is registered with Cognito by `sst.config.ts` and needs no Google entry.
 
-When the permissions change, rerun the `put-role-policy` command. When the trust policy changes (for example, a new GitHub environment), apply it with `aws iam update-assume-role-policy --role-name github-poker-timer --policy-document file:///tmp/trust.json` after the `sed` above.
-
-### Bring up `prod`
-
-`prod` is deployed only by the delivery workflow, after `dev` succeeds and a required reviewer approves. Until the custom domain exists it serves on its CloudFront host. Once, before the first approval:
-
-1. In Neon, use the `production` branch; copy its **pooled** connection string and change `sslmode=require` to `sslmode=verify-full`.
-2. In GitHub, create the environment **Settings → Environments → New environment → `prod`**, tick **Required reviewers** and add yourself.
-3. Add the `prod` environment secrets: `DATABASE_URL` (step 1), `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and a new `SIGNIN_COOKIE_KEY` (`openssl rand -base64 32`; never reuse another stage's key).
-4. Make sure the deploy role's trust policy admits the `prod` environment (see above).
-5. Merge to `master`, approve the `prod` job, and take `url` and `cognitoHostedDomain` from the deploy output.
-6. Add `<cognitoHostedDomain>/oauth2/idpresponse` to the Google OAuth client's **Authorized redirect URIs** (see [Google sign-in](#google-sign-in)).
-
-`prod` uses `removal: "retain"` and `protect: true`, so `sst remove --stage prod` refuses to run and its data survives a mistaken removal.
+`prod` uses `removal: "retain"` and `protect: true`, so `sst remove --stage prod` refuses to run and its data survives a mistaken removal. Until the custom domain exists, it serves on its CloudFront host.
 
 ## Contracts package
 
 `packages/contracts` holds the zod schemas for every request and response, plus sample fixtures on a separate `./fixtures` entry point. Inside this workspace the API imports its TypeScript source directly; the published package (`@pstephenwille/poker-timer-contracts` on GitHub Packages) ships the `tsc` build in `dist/` instead, through `publishConfig.exports`.
 
-To release a new version, bump `version` in `packages/contracts/package.json` following semantic versioning (major for any removed, renamed or tightened field) and merge. The **Publish contracts** workflow publishes only when that exact version is not already on the registry, after rerunning the contracts and fixture tests; it can also be run by hand from the Actions tab.
+To release a new version, bump `version` in `packages/contracts/package.json` following semantic versioning (major for any removed, renamed or tightened field) and merge. CI publishes it.
 
 To consume it from another repository, point the scope at GitHub Packages and authenticate with a token that has `read:packages` (in GitHub Actions, the workflow's `GITHUB_TOKEN`, after granting that repository read access under the package's **Manage Actions access**):
 
@@ -199,4 +159,4 @@ To consume it from another repository, point the scope at GitHub Packages and au
 
 - **PR gate** (`.github/workflows/pr-gate.yml`): Biome, typecheck, unit and integration tests on every pull request.
 - **Deliver** (`.github/workflows/deliver.yml`): every push to `master` migrates and deploys `dev`, then waits for a reviewer's approval in the `prod` environment and migrates and deploys `prod`. Both stages run the same steps from `.github/workflows/deploy-stage.yml`.
-- **Publish contracts** (`.github/workflows/publish-contracts.yml`): on a push to `master` that touches `packages/contracts`, publishes the package if its version is new.
+- **Publish contracts** (`.github/workflows/publish-contracts.yml`): on a push to `master` that touches `packages/contracts`, reruns the contracts and fixture tests and publishes the package if its version is not already on the registry. It can also be run by hand from the Actions tab.
