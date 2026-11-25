@@ -22,11 +22,19 @@ The system SHALL reject a sign-in callback whose state does not match the sign-i
 
 #### Scenario: Callback without the sign-in cookie
 - **WHEN** a callback arrives in a browser that did not start sign-in
+- **THEN** the system creates no session and redirects to the app root with `signinError=failed`
+
+#### Scenario: Callback with an unreadable sign-in cookie
+- **WHEN** a callback arrives with a sign-in cookie that was tampered with or sealed with another key
+- **THEN** the system creates no session and redirects to the app root with `signinError=failed`
+
+#### Scenario: Sign-in cookie older than 10 minutes
+- **WHEN** a callback arrives with a sign-in cookie issued more than 10 minutes earlier
 - **THEN** the system creates no session and redirects to the app root with `signinError=expired`
 
 #### Scenario: Replayed callback
 - **WHEN** a callback URL that already completed sign-in is opened again
-- **THEN** the system creates no new session and redirects to the app root with `signinError=expired`
+- **THEN** the system creates no new session and redirects to the app root with `signinError=failed`
 
 ### Requirement: Sign-in failures are reported to the app
 The system SHALL end every failed sign-in callback by redirecting to the app root with a `signinError` code (`cancelled`, `expired`, `deactivated` or `failed`) and a `ref` request identifier, SHALL create no session and delete the sign-in cookie, SHALL log the detailed failure reason under that `ref`, and SHALL NOT place message text in the redirect.

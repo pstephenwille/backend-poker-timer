@@ -226,12 +226,23 @@ describe("failed sign-in", () => {
     });
   });
 
-  test("a callback in a browser that never started sign-in is expired", async () => {
+  test("a callback in a browser that never started sign-in fails", async () => {
     const { authorizationUrl } = await beginSignin();
 
     const response = await callback(provider.approve(authorizationUrl));
 
-    expect(failureRedirect(response).params.signinError).toBe("expired");
+    expect(failureRedirect(response).params.signinError).toBe("failed");
+  });
+
+  test("a tampered sign-in cookie fails", async () => {
+    const { authorizationUrl, signinCookie } = await beginSignin();
+
+    const response = await callback(
+      provider.approve(authorizationUrl),
+      `${signinCookie}tampered`,
+    );
+
+    expect(failureRedirect(response).params.signinError).toBe("failed");
   });
 
   test("a sign-in cookie older than 10 minutes is expired", async () => {
@@ -246,14 +257,14 @@ describe("failed sign-in", () => {
     expect(failureRedirect(response).params.signinError).toBe("expired");
   });
 
-  test("replaying a completed callback is expired and creates no session", async () => {
+  test("replaying a completed callback fails and creates no session", async () => {
     const { authorizationUrl, signinCookie } = await beginSignin();
     const callbackParams = provider.approve(authorizationUrl);
     await callback(callbackParams, signinCookie);
 
     const replay = await callback(callbackParams);
 
-    expect(failureRedirect(replay).params.signinError).toBe("expired");
+    expect(failureRedirect(replay).params.signinError).toBe("failed");
     expect(await sessionCount()).toBe(1);
   });
 
@@ -306,7 +317,7 @@ describe("failed sign-in", () => {
     expect(logged).toContainEqual({
       event: "signin_failed",
       ref: params.ref,
-      code: "expired",
+      code: "failed",
       reason: "Sign-in cookie missing",
     });
   });
