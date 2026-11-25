@@ -104,6 +104,10 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 
 - [x] 17.1 Drop `recorder_not_participant` from `POST /api/tournaments` and `recorder_must_remain_participant` from `PATCH /api/tournaments/{id}`, so any member may record a tournament and the recorder may leave its participants; editing and deleting stay limited to the recorder or an admin, and `recordedById` is unchanged; verify integration tests for recording a tournament the recorder did not play, an edit removing the recorder, and the recorder editing a tournament they did not play
 
+## 18. Only the winner is required (contracts 1.1.0)
+
+- [x] 18.1 Drop `MIN_PARTICIPANTS` from 2 to 1 and remove its own check, since the winner being a participant implies it, so a tournament may have the winner as its only participant (frontend Decision 46); release contracts `1.1.0`; verify unit tests for a winner-only tournament and an empty participant list, and integration tests for `POST` and `PATCH` with only the winner
+
 ## Workflow follow-up
 
 - Archive the change once implementation is reviewed and deployed to `prod`.

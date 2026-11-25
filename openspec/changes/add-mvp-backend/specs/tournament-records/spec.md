@@ -21,7 +21,7 @@ A tournament SHALL consist of `playedOn` (required, epoch milliseconds), `partic
 - **THEN** the system responds 400 listing the allowed values
 
 ### Requirement: Tournament field validation
-The system SHALL reject a tournament unless: `playedOn` is present and is a non-negative integer of epoch milliseconds no later than the server's current time plus 5 minutes of clock-drift tolerance; there are at least 2 distinct participants, all group members; the winner is a participant; `pot` is a whole number of dollars ≥ 0; Final Hand Opponents are distinct participants other than the winner; and `note` is at most 500 characters.
+The system SHALL reject a tournament unless: `playedOn` is present and is a non-negative integer of epoch milliseconds no later than the server's current time plus 5 minutes of clock-drift tolerance; participants are distinct group members; the winner is a participant, so a tournament may have the winner as its only participant; `pot` is a whole number of dollars ≥ 0; Final Hand Opponents are distinct participants other than the winner; and `note` is at most 500 characters.
 
 #### Scenario: Missing date
 - **WHEN** a tournament is submitted without `playedOn`
@@ -39,9 +39,9 @@ The system SHALL reject a tournament unless: `playedOn` is present and is a non-
 - **WHEN** `playedOn` is fractional, negative or not a number
 - **THEN** the system responds 400
 
-#### Scenario: Single participant
-- **WHEN** a tournament is submitted with fewer than 2 distinct participants
-- **THEN** the system responds 400
+#### Scenario: Winner as the only participant
+- **WHEN** a tournament is submitted, or edited, with only the winner in `participantIds`
+- **THEN** the system accepts the tournament
 
 #### Scenario: Winner not a participant
 - **WHEN** `winnerId` is not in `participantIds`
