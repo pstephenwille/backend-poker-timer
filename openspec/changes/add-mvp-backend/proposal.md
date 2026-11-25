@@ -10,7 +10,7 @@
 - A backend auth layer: Google sign-in brokered by a dedicated Cognito user pool, with the backend holding server-side sessions and giving the browser only an `HttpOnly` session cookie (no tokens in the browser). Every signed-in user is automatically a member of the single group. Guests (players without accounts) are never stored.
 - Single-origin hosting: one CloudFront distribution on a custom domain serves the frontend and routes `/api/*` to the backend.
 - User profiles with an optional unique username, a privacy-preserving display-name fallback, an optional avatar, and derived stats.
-- Tournament records: date, participants, winner, winning hand category, pot (whole dollars), optional Final Hand Opponents, note and photo. Any participant may record; only the recorder or an admin may edit or delete.
+- Tournament records: date, participants, winner, winning hand category, pot (whole dollars), optional Final Hand Opponents, note and photo. Any member may record, whether or not they played; only the recorder or an admin may edit or delete.
 - Private photo storage with presigned uploads, EXIF stripping and a resized display variant.
 - A computed leaderboard ranked by total wins with a hand-history tie-break and then the most recent win, readable publicly without sign-in.
 - Admin deactivation of accounts (blocks sign-in only; history and leaderboard placement are kept).

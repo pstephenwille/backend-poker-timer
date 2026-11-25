@@ -63,16 +63,20 @@ The system SHALL reject a tournament unless: `playedOn` is present and is a non-
 - **WHEN** `participantIds` contains an id that is not a group member
 - **THEN** the system responds 400 naming the unknown id
 
-### Requirement: Recorder must be a participant
-The system SHALL only accept a tournament whose participants include the user recording it, and SHALL keep the recorder among the participants on every edit.
+### Requirement: Any member may record
+The system SHALL accept a tournament recorded by any signed-in member, whether or not they are among its participants, and SHALL set `recordedById` to that member. An edit MAY leave the recorder out of the participants.
 
 #### Scenario: Recording a tournament you did not play
 - **WHEN** a member records a tournament whose `participantIds` excludes themselves
-- **THEN** the system responds 403 stating the recorder must be a participant
+- **THEN** the system accepts the tournament with `recordedById` set to that member
 
 #### Scenario: Removing the recorder on edit
-- **WHEN** an edit would remove the recorder from `participantIds`
-- **THEN** the system responds 400
+- **WHEN** an edit removes the recorder from `participantIds`
+- **THEN** the system accepts the edit and `recordedById` is unchanged
+
+#### Scenario: Editing a tournament you did not play
+- **WHEN** the recorder edits a tournament whose participants exclude them
+- **THEN** the system accepts the edit
 
 ### Requirement: No confirmation step
 The system SHALL count a recorded tournament in stats and the leaderboard immediately, without confirmation from other participants.

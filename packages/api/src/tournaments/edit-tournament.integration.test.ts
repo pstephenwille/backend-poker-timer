@@ -128,18 +128,34 @@ describe("PATCH /api/tournaments/{id}", () => {
     expect(Tournament.parse(await response.json()).pot).toBe(300);
   });
 
-  test("an edit that removes the recorder is refused", async () => {
+  test("an edit can remove the recorder from the participants", async () => {
     const dee = await signInTestUser(database, "dee");
 
     const response = await edit({
       participantIds: [participant.user.id, dee.user.id],
       winnerId: participant.user.id,
     });
+    const tournament = Tournament.parse(await response.json());
 
-    expect(response.status).toBe(400);
-    expect((await errorOf(response)).code).toBe(
-      "recorder_must_remain_participant",
-    );
+    expect(response.status).toBe(200);
+    expect(tournament.recordedById).toBe(recorder.user.id);
+    expect(tournament.participants.map(({ id }) => id)).toEqual([
+      participant.user.id,
+      dee.user.id,
+    ]);
+  });
+
+  test("the recorder can still edit a tournament they did not play", async () => {
+    const dee = await signInTestUser(database, "dee");
+    await edit({
+      participantIds: [participant.user.id, dee.user.id],
+      winnerId: participant.user.id,
+    });
+
+    const response = await edit({ pot: 250 });
+
+    expect(response.status).toBe(200);
+    expect(Tournament.parse(await response.json()).pot).toBe(250);
   });
 
   test("an edit that breaks a cross-field rule is refused", async () => {
