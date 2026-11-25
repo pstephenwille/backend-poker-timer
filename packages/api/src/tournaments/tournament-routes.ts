@@ -73,16 +73,14 @@ function mergeChanges(
       toErrorDetails(merged.error.issues),
     );
   }
-  if (!merged.data.participantIds.includes(stored.recordedById)) {
-    throw new ApiError(
-      400,
-      "recorder_must_remain_participant",
-      "The member who recorded this tournament must stay a participant",
-    );
-  }
   return merged.data;
 }
 
+/**
+ * Any member may record a tournament, played or not, and the recorder may leave its participants.
+ * The participant checkboxes are the only record of who played, so requiring the recorder among
+ * them verified nothing and only blocked a host who sat out.
+ */
 export function tournamentRoutes(store: TournamentStore) {
   async function requireMembers(participantIds: string[]) {
     const unknownIds = await store.findUnknownMembers(participantIds);
@@ -107,13 +105,6 @@ export function tournamentRoutes(store: TournamentStore) {
     .post("/", validate("json", CreateTournament), async (c) => {
       const { userId } = c.get("session");
       const details = c.req.valid("json");
-      if (!details.participantIds.includes(userId)) {
-        throw new ApiError(
-          403,
-          "recorder_not_participant",
-          "You can only record a tournament you played in",
-        );
-      }
       await requireMembers(details.participantIds);
       const id = await store.insert(details, userId);
       return c.json(await findTournament(id), 201);

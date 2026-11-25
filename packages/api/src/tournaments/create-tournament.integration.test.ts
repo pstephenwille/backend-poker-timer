@@ -251,17 +251,17 @@ describe("POST /api/tournaments", () => {
     expect(await storedTournamentCount()).toBe(0);
   });
 
-  test("answers 403 when the recorder did not play", async () => {
+  test("a member who did not play can record it, and is kept as its recorder", async () => {
     const response = await record({
       ...minimalTournament(),
       participantIds: [bobId, calId],
       winnerId: bobId,
     });
-    const error = await errorOf(response);
+    const tournament = Tournament.parse(await response.json());
 
-    expect(response.status).toBe(403);
-    expect(error.code).toBe("recorder_not_participant");
-    expect(await storedTournamentCount()).toBe(0);
+    expect(response.status).toBe(201);
+    expect(tournament.recordedById).toBe(annId);
+    expect(tournament.participants.map(({ id }) => id)).toEqual([bobId, calId]);
   });
 
   test("a cross-site request with a valid session is refused and changes nothing", async () => {

@@ -100,6 +100,10 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 - [x] 16.2 Break full ties in `rankLeaderboard` by the most recent win (`playedOn`, then `createdAt`, then tournament id), giving every member with a win their own rank; verify unit tests for alternating identical winners, distinct ranks and the id tie-break, and an integration test for the most recent winner ranking first
 - [x] 16.3 Add `lastWonAt` (the `playedOn` of the latest win, or null) to `LeaderboardEntry` and its fixture, and publish contracts `1.0.0`; verify unit tests for `lastWonAt` and the integration test of entry fields
 
+## 17. Any member may record
+
+- [x] 17.1 Drop `recorder_not_participant` from `POST /api/tournaments` and `recorder_must_remain_participant` from `PATCH /api/tournaments/{id}`, so any member may record a tournament and the recorder may leave its participants; editing and deleting stay limited to the recorder or an admin, and `recordedById` is unchanged; verify integration tests for recording a tournament the recorder did not play, an edit removing the recorder, and the recorder editing a tournament they did not play
+
 ## Workflow follow-up
 
 - Archive the change once implementation is reviewed and deployed to `prod`.

@@ -76,7 +76,7 @@ Drizzle with the `node-postgres` driver over TCP to Neon's pooled endpoint — t
 - `playedOn` travels as epoch milliseconds and is stored as a UTC instant. The server compares it only to its own clock (5-minute drift tolerance) and never reasons about time zones; clients localize it for display and, for a picked past date, send that day's local noon so viewers a few zones away still see the same date.
 - `winning_hand` is a Postgres enum in ascending order (`high_card` … `royal_flush`), so enum ordering is hand strength.
 
-Cross-field rules (winner ∈ participants, Final Hand Opponents ⊂ participants \ {winner}, recorder ∈ participants) are enforced in the zod schemas and the service layer inside one transaction.
+Cross-field rules (winner ∈ participants, Final Hand Opponents ⊂ participants \ {winner}) are enforced in the zod schemas and the service layer inside one transaction. The recorder need not be a participant: the participant checkboxes are the only record of who played, so requiring the recorder among them verified nothing and only stopped a host who sat a game out from recording it.
 
 ### API surface
 All paths are under `/api`.
