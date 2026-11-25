@@ -25,11 +25,17 @@ export default $config({
     };
   },
   async run() {
-    const { stageSettings } = await import("./infra/stage-settings.ts");
+    const { localFrontendOrigin, stageSettings } = await import(
+      "./infra/stage-settings.ts"
+    );
     const { spaFallbackUri } = await import("./infra/spa-fallback.ts");
     const { authCallbackUrl, cognitoDomainPrefix, signOutReturnUrl } =
       await import("./infra/auth-settings.ts");
     const settings = stageSettings($app.stage);
+    const localOrigin = localFrontendOrigin(
+      $app.stage,
+      process.env.LOCAL_FRONTEND_ORIGIN,
+    );
 
     const databaseUrl = new sst.Secret("DatabaseUrl");
     const googleClientId = new sst.Secret("GoogleClientId");
@@ -57,8 +63,11 @@ export default $config({
     router.route("/api", api.url);
     router.routeBucket("/", frontend);
 
-    const callbackUrl = router.url.apply(authCallbackUrl);
-    const signOutUrl = router.url.apply(signOutReturnUrl);
+    /** Where browsers load the app: the stage's own host, or a local dev server for a personal stage. */
+    const appUrl = localOrigin ? $output(`${localOrigin}/`) : router.url;
+    const appOrigin = appUrl.apply((url) => new URL(url).origin);
+    const callbackUrl = appUrl.apply(authCallbackUrl);
+    const signOutUrl = appUrl.apply(signOutReturnUrl);
     const userPool = new aws.cognito.UserPool("UserPool", {
       adminCreateUserConfig: { allowAdminCreateUserOnly: true },
     });
@@ -110,12 +119,13 @@ export default $config({
         adminGroup: ADMIN_GROUP_NAME,
         callbackUrl,
         signOutReturnUrl: signOutUrl,
+        appOrigin,
       },
     });
 
     const media = new sst.aws.Bucket("Media", {
       cors: {
-        allowOrigins: [router.url.apply((url) => new URL(url).origin)],
+        allowOrigins: [appOrigin],
         allowMethods: ["POST"],
         allowHeaders: ["*"],
       },
@@ -157,7 +167,7 @@ export default $config({
       handler: "packages/api/src/lambda.handler",
       architecture: "arm64",
       runtime: LAMBDA_RUNTIME,
-      link: [databaseUrl, router, auth, signinCookieKey, media],
+      link: [databaseUrl, auth, signinCookieKey, media],
     });
 
     return {

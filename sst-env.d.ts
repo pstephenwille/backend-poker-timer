@@ -12,6 +12,7 @@ declare module "sst" {
     }
     "Auth": {
       "adminGroup": string
+      "appOrigin": string
       "callbackUrl": string
       "clientId": string
       "clientSecret": string
