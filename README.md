@@ -54,16 +54,26 @@ aws cloudfront create-invalidation --distribution-id <distributionId> --paths "/
 
 ### Serve a local frontend dev server from a personal stage
 
-Sign-in only completes on the origin Cognito returns to, so a frontend dev server on localhost can't sign in against a stage that serves its own frontend. Deploy a personal stage with `LOCAL_FRONTEND_ORIGIN` to make localhost its app origin:
+Sign-in only completes on the origin Cognito returns to, so a frontend dev server on localhost can't sign in against a stage that serves its own frontend. Set `LOCAL_FRONTEND_ORIGIN` on a personal stage to make localhost its app origin. To keep it set for every deploy of that stage, put it in `.env.<your-name>` beside `sst.config.ts` (git ignores `.env.*`):
 
 ```sh
-LOCAL_FRONTEND_ORIGIN=http://localhost:3333 pnpm sst deploy --stage <your-name>
+LOCAL_FRONTEND_ORIGIN=http://localhost:3333
 ```
+
+Then deploy as usual with `pnpm sst deploy --stage <your-name>`. For a single deploy, set it in the shell instead: `LOCAL_FRONTEND_ORIGIN=http://localhost:3333 pnpm sst deploy --stage <your-name>`.
+
+SST reads environment variables from these sources, and the first one that sets a variable wins:
+
+1. The shell running `sst`.
+2. `.env`.
+3. `.env.<stage>`, only for the stage being deployed.
+
+So an exported `LOCAL_FRONTEND_ORIGIN`, or one in `.env`, overrides `.env.<your-name>`, and applies to every stage you deploy from that shell or folder.
 
 Then run the frontend with its `/api` proxy pointed at the stage: `API_ORIGIN=<url> pnpm dev`. Cognito returns sign-in to `http://localhost:3333/api/auth/callback`, the API accepts requests with `Origin: http://localhost:3333`, and photo uploads are allowed from it.
 
 - Use Chrome or Firefox. Safari won't keep the `Secure` session cookie on `http://localhost`.
-- While set, the stage's own CloudFront address can't sign in. Deploy again without the variable to switch back.
+- While set, the stage's own CloudFront address can't sign in. Remove the variable (rename or delete `.env.<your-name>`) and deploy again to switch back.
 - `dev` and `prod` refuse the variable. It must be `http://localhost:<port>`.
 
 ### Database
