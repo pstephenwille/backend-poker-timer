@@ -22,7 +22,7 @@ export const handler = handle(
   createApp({
     database,
     clock: systemClock,
-    appOrigin: new URL(Resource.Router.url).origin,
+    appOrigin: Resource.Auth.appOrigin,
     auth: {
       identityProvider,
       signinCookieKey: Resource.SigninCookieKey.value,

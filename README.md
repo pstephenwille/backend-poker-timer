@@ -52,6 +52,20 @@ aws s3 sync dist/ s3://<frontendBucket>/ --delete
 aws cloudfront create-invalidation --distribution-id <distributionId> --paths "/*"
 ```
 
+### Serve a local frontend dev server from a personal stage
+
+Sign-in only completes on the origin Cognito returns to, so a frontend dev server on localhost can't sign in against a stage that serves its own frontend. Deploy a personal stage with `LOCAL_FRONTEND_ORIGIN` to make localhost its app origin:
+
+```sh
+LOCAL_FRONTEND_ORIGIN=http://localhost:3333 pnpm sst deploy --stage <your-name>
+```
+
+Then run the frontend with its `/api` proxy pointed at the stage: `API_ORIGIN=<url> pnpm dev`. Cognito returns sign-in to `http://localhost:3333/api/auth/callback`, the API accepts requests with `Origin: http://localhost:3333`, and photo uploads are allowed from it.
+
+- Use Chrome or Firefox. Safari won't keep the `Secure` session cookie on `http://localhost`.
+- While set, the stage's own CloudFront address can't sign in. Deploy again without the variable to switch back.
+- `dev` and `prod` refuse the variable. It must be `http://localhost:<port>`.
+
 ### Database
 
 Each stage has its own [Neon](https://neon.tech) branch in the one Neon project (`production`, `dev`, and one per personal stage). Create the branch in the Neon console and copy its **pooled** connection string.
