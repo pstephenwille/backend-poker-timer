@@ -30,7 +30,8 @@ export const WinRate = z.number().min(0).max(1).nullable();
 export const MAX_NOTE_LENGTH = 500;
 /** Clients' clocks drift; a tournament recorded just after it ends must not look like a future one. */
 export const PLAYED_ON_DRIFT_TOLERANCE_MS = 5 * 60 * 1000;
-export const MIN_PARTICIPANTS = 2;
+/** Implied by the winner being a participant, so no rule of its own checks it; still exported for clients built on 1.0. */
+export const MIN_PARTICIPANTS = 1;
 
 const PlayedOn = z
   .int({
@@ -79,12 +80,6 @@ function crossFieldIssues({
     issues.push({
       path: "participantIds",
       message: "participants must be distinct",
-    });
-  }
-  if (new Set(participantIds).size < MIN_PARTICIPANTS) {
-    issues.push({
-      path: "participantIds",
-      message: `a tournament needs at least ${MIN_PARTICIPANTS} participants`,
     });
   }
   if (!participantIds.includes(winnerId)) {

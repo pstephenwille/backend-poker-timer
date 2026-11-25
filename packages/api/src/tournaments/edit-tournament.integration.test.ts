@@ -158,6 +158,16 @@ describe("PATCH /api/tournaments/{id}", () => {
     expect(Tournament.parse(await response.json()).pot).toBe(250);
   });
 
+  test("an edit can leave the winner as the only participant", async () => {
+    const response = await edit({ participantIds: [recorder.user.id] });
+    const tournament = Tournament.parse(await response.json());
+
+    expect(response.status).toBe(200);
+    expect(tournament.participants.map(({ id }) => id)).toEqual([
+      recorder.user.id,
+    ]);
+  });
+
   test("an edit that breaks a cross-field rule is refused", async () => {
     const response = await edit({ finalHandOpponentIds: [recorder.user.id] });
 

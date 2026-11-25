@@ -116,13 +116,14 @@ describe("CreateTournament", () => {
   });
 
   describe("participants", () => {
-    test("needs at least 2 distinct participants", () => {
-      expect(
-        issuesFor({ ...minimal, participantIds: [ANN], winnerId: ANN }),
-      ).toContainEqual({
-        path: "participantIds",
-        message: "a tournament needs at least 2 participants",
-      });
+    test("accepts the winner as the only participant", () => {
+      expect(rejects({ ...minimal, participantIds: [ANN] })).toBe(false);
+    });
+
+    test("no participants fails only because the winner is not one", () => {
+      expect(issuesFor({ ...minimal, participantIds: [] })).toEqual([
+        { path: "winnerId", message: "the winner must be a participant" },
+      ]);
     });
 
     test("rejects duplicate participants", () => {

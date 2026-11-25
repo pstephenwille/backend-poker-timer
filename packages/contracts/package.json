@@ -1,6 +1,6 @@
 {
   "name": "@pstephenwille/poker-timer-contracts",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Request and response schemas for the poker-timer API, with sample fixtures",
   "type": "module",
   "repository": {

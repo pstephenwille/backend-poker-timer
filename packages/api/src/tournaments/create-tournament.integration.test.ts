@@ -171,13 +171,17 @@ describe("POST /api/tournaments", () => {
     expect(detail?.message).toMatch(/high_card.*royal_flush/);
   });
 
-  test("answers 400 for a single participant", async () => {
+  test("stores a tournament whose only participant is the winner", async () => {
     const response = await record({
       ...minimalTournament(),
       participantIds: [annId],
     });
+    const tournament = Tournament.parse(await response.json());
 
-    expect(response.status).toBe(400);
+    expect(response.status).toBe(201);
+    expect(tournament.participants).toEqual([
+      { id: annId, displayName: "ann" },
+    ]);
   });
 
   test("answers 400 when the winner is not a participant", async () => {
