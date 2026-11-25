@@ -7,7 +7,10 @@ import {
   type IdentityProvider,
   IdentityProviderError,
 } from "./identity-provider.ts";
-import type { SigninCookieSealer } from "./signin-cookie.ts";
+import {
+  SIGNIN_COOKIE_EXPIRED,
+  type SigninCookieSealer,
+} from "./signin-cookie.ts";
 
 export interface SigninFailure {
   ok: false;
@@ -40,6 +43,16 @@ export function signinFailure(
   return { ok: false, code, reason };
 }
 
+/**
+ * Only a cookie that outlived sign-in is reported as expired. A missing or
+ * unreadable one means sign-in ended on another site than it began, or the
+ * cookie was tampered with, so it is a failure the user can quote by ref.
+ */
+function unopenedCookieFailure(reason: string): SigninFailure {
+  const code = reason === SIGNIN_COOKIE_EXPIRED ? "expired" : "failed";
+  return signinFailure(code, `Sign-in cookie ${reason}`);
+}
+
 function providerFailure(error: IdentityProviderError): SigninFailure {
   const code = error.reason === "access_denied" ? "cancelled" : "failed";
   return signinFailure(code, error.message);
@@ -58,7 +71,7 @@ export function createSigninCallback({
   ): Promise<VerifiedIdentity | SigninFailure> {
     const opened = signinCookies.open(sealedCookie);
     if (!opened.ok) {
-      return signinFailure("expired", `Sign-in cookie ${opened.reason}`);
+      return unopenedCookieFailure(opened.reason);
     }
     const { state, nonce, codeVerifier, returnTo } = opened.payload;
     try {

@@ -5,6 +5,7 @@ import type { Clock } from "../clock.ts";
 export const SIGNIN_COOKIE = "__Secure-signin";
 export const SIGNIN_COOKIE_PATH = "/api/auth";
 export const SIGNIN_LIFETIME_SECONDS = 10 * 60;
+export const SIGNIN_COOKIE_EXPIRED = "expired";
 
 const CIPHER = "aes-256-gcm";
 const KEY_BYTES = 32;
@@ -92,7 +93,7 @@ export function createSigninCookieSealer(keyBase64: string, clock: Clock) {
     }
     const ageMillis = clock.now().getTime() - payload.data.issuedAt;
     if (ageMillis < 0 || ageMillis > SIGNIN_LIFETIME_MILLIS) {
-      return { ok: false, reason: "expired" };
+      return { ok: false, reason: SIGNIN_COOKIE_EXPIRED };
     }
     return { ok: true, payload: payload.data };
   }

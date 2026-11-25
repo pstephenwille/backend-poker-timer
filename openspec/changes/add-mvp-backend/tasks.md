@@ -108,6 +108,10 @@ Work proceeds as a walking skeleton followed by vertical slices (see design.md, 
 
 - [x] 18.1 Drop `MIN_PARTICIPANTS` from 2 to 1 and remove its own check, since the winner being a participant implies it, so a tournament may have the winner as its only participant (frontend Decision 46); release contracts `1.1.0`; verify unit tests for a winner-only tournament and an empty participant list, and integration tests for `POST` and `PATCH` with only the winner
 
+## 19. Sign-in cookie failures
+
+- [x] 19.1 Report a missing or unreadable sign-in cookie on `GET /api/auth/callback` as `signinError=failed` with its `ref`, keeping `expired` for a cookie older than 10 minutes, so finishing sign-in on another origin (such as localhost against `dev`) no longer says it took too long; verify integration tests for a callback without the cookie, with a tampered cookie, a replayed callback and an expired cookie
+
 ## Workflow follow-up
 
 - Archive the change once implementation is reviewed and deployed to `prod`.
